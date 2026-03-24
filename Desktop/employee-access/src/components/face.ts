@@ -15,6 +15,7 @@ export type CameraPane = {
     setStatus: (label: string, tone?: StatusTone) => void;
     captureFrameTensor: (targetSize?: number) => Float32Array | null;
     captureFrameJpeg: (targetSize?: number, quality?: number) => string | null;
+    captureFrameBlob: (targetSize?: number, quality?: number) => Promise<Blob | null>;
     setFaceOverlay: (face: OverlayFaceBox | null) => void;
 };
 
@@ -155,7 +156,7 @@ export const createFacePane = (): CameraPane => {
         return tensor;
     };
 
-    const captureFrameJpeg = (targetSize = 640, quality = 0.88): string | null => {
+    const captureFrameJpeg = (targetSize = 1080, quality = 0.88): string | null => {
         if (!context) {
             return null;
         }
@@ -164,6 +165,23 @@ export const createFacePane = (): CameraPane => {
             return null;
         }
         return canvas.toDataURL('image/jpeg', quality);
+    };
+
+    const captureFrameBlob = async (targetSize = 1080, quality = 0.88): Promise<Blob | null> => {
+        if (!context) {
+            return null;
+        }
+        if (!video.videoWidth || !video.videoHeight) {
+            return null;
+        }
+        canvas.width = targetSize;
+        canvas.height = targetSize;
+        context.drawImage(video, 0, 0, targetSize, targetSize);
+        return new Promise((resolve) => {
+            canvas.toBlob((blob) => {
+                resolve(blob);
+            }, 'image/jpeg', quality);
+        });
     };
 
     const setFaceOverlay = (face: OverlayFaceBox | null): void => {
@@ -187,6 +205,7 @@ export const createFacePane = (): CameraPane => {
         setStatus,
         captureFrameTensor,
         captureFrameJpeg,
+        captureFrameBlob,
         setFaceOverlay,
     };
 };

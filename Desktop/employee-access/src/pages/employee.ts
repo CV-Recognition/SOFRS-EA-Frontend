@@ -62,7 +62,7 @@ export const createEmployeePage = ({ onBack, onGoVisitor }: EmployeePageHandlers
             return;
         }
 
-        const frameTensor = camera.captureFrameTensor(640);
+        const frameTensor = camera.captureFrameTensor(1080);
 
         if (!frameTensor) {
             camera.setStatus('Camera warming up', 'warn');
@@ -76,8 +76,8 @@ export const createEmployeePage = ({ onBack, onGoVisitor }: EmployeePageHandlers
         try {
             const response = await window.detector.detectFace({
                 tensor: Array.from(frameTensor),
-                width: 640,
-                height: 640,
+                width: 1080,
+                height: 1920,
                 threshold: 0.35,
             });
 

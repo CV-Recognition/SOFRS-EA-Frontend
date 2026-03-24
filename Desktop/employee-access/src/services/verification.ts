@@ -15,18 +15,7 @@ export type EmployeeRecord = {
 };
 
 export type VerifyFaceRequest = {
-  imageBase64: string;
-  detector: {
-    confidence: number;
-    faceCount: number;
-    boundingBox: {
-      x: number;
-      y: number;
-      width: number;
-      height: number;
-    };
-  };
-  source: "desktop";
+    imageFile: Blob;
 };
 
 export type VerifyFaceResponse = {
@@ -38,12 +27,9 @@ export type VerifyFaceResponse = {
 };
 
 const getVerifyEndpoint = (): string => {
-  const endpoint = import.meta.env.VITE_VERIFY_ENDPOINT;
-  if (endpoint && endpoint.trim().length > 0) {
-    return endpoint.trim();
-  }
+    const endpoint = import.meta.env.BASE_URL + '/api/verify-face';
 
-  return "http://localhost:8000/image/search";
+    return endpoint;
 };
 
 const toNumber = (value: unknown): number => {

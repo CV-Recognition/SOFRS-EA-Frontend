@@ -101,8 +101,10 @@ export const createMainScreenPage = (): MainScreenView => {
   const resultCopy = document.createElement("p");
   resultCopy.className = "result-copy";
 
-  const resultMeta = document.createElement("p");
-  resultMeta.className = "result-meta";
+    const retryButton = document.createElement('button');
+    retryButton.className = 'action-btn retry-btn';
+    retryButton.type = 'button';
+    retryButton.textContent = 'Retry Scan';
 
   const resultActions = document.createElement("div");
   resultActions.className = "result-actions";
@@ -112,11 +114,8 @@ export const createMainScreenPage = (): MainScreenView => {
   retryButton.type = "button";
   retryButton.textContent = "Retry Scan";
 
-  const desktopSetupButton = document.createElement("button");
-  desktopSetupButton.className = "action-btn";
-  desktopSetupButton.type = "button";
-  desktopSetupButton.dataset.variant = "secondary";
-  desktopSetupButton.textContent = "Setup FaceID Here";
+    resultActions.append(desktopSetupButton, mobileSetupButton);
+    resultCard.append(resultTitle, resultCopy, resultMeta, resultActions);
 
   const mobileSetupButton = document.createElement("button");
   mobileSetupButton.className = "action-btn";
@@ -161,10 +160,35 @@ export const createMainScreenPage = (): MainScreenView => {
   const desktopProgress = document.createElement("p");
   desktopProgress.className = "desktop-progress";
 
-  const desktopCaptureButton = document.createElement("button");
-  desktopCaptureButton.className = "action-btn";
-  desktopCaptureButton.type = "button";
-  desktopCaptureButton.textContent = "Capture Pose";
+    overlay.append(header, stageMessage, resultCard, mobilePanel, desktopPanel, bottomPanel, retryButton);
+    shell.append(camera.element, overlay);
+
+    let detectionTimer: ReturnType<typeof setInterval> | null = null;
+    let animFrame: number | null = null;
+    let requestAbort: AbortController | null = null;
+    let targetProgress = 0;
+    let currentProgress = 0;
+    let verifying = false;
+    let loopPaused = false;
+    let enrollmentSamples: Record<string, string> = {};
+
+    const setProgressTarget = (value: number): void => {
+        targetProgress = Math.max(0, Math.min(100, value));
+    };
+
+    const runProgressAnimation = (): void => {
+        const tick = (): void => {
+            currentProgress += (targetProgress - currentProgress) * 0.14;
+            const rounded = Math.max(0, Math.min(100, currentProgress));
+            progressFill.style.width = `${rounded.toFixed(1)}%`;
+            progressValue.textContent = `${Math.round(rounded)}%`;
+            animFrame = window.requestAnimationFrame(tick);
+        };
+
+        if (animFrame === null) {
+            animFrame = window.requestAnimationFrame(tick);
+        }
+    };
 
   desktopPanel.append(
     desktopTitle,
@@ -518,9 +542,57 @@ export const createMainScreenPage = (): MainScreenView => {
       return;
     }
 
-    enrollmentSamples[pose] = image;
-    const count = Object.keys(enrollmentSamples).length;
-    setProgressTarget(20 + count * 15);
+    const dataUrlToJpegFile = async (dataUrl: string): Promise<File> => {
+        const blob = await fetch(dataUrl).then((response) => response.blob());
+        return new File([blob], 'face.jpg', { type: 'image/jpeg' });
+    };
+
+    const runVerification = async (detection: FaceDetectionResponse): Promise<void> => {
+        if (!detection.primaryFace || verifying || loopPaused) {
+            return;
+        }
+
+        const snapshot = camera.captureFrameJpeg(1080, 0.9);
+        if (!snapshot) {
+            return;
+        }
+
+        verifying = true;
+        setStage('capturing', 'Capturing frame', 'Face captured. Preparing verification request.');
+        setProgressTarget(34);
+
+        requestAbort = new AbortController();
+
+        try {
+            setStage('uploading', 'Sending to API', 'Uploading captured face to verification service.');
+            setProgressTarget(56);
+
+            const imageFile = await dataUrlToJpegFile(snapshot);
+
+            const response = await verifyFace({
+                imageFile
+            }, requestAbort.signal);
+
+            setStage('verifying', 'Verifying response', 'Evaluating recognition response and policy checks.');
+            setProgressTarget(85);
+
+            const employeeName = response.employee?.name && typeof response.employee.name === 'string'
+                ? response.employee.name
+                : null;
+
+            if (response.recognized) {
+                showRecognized(response.message, employeeName, response.similarity);
+            } else {
+                showUnrecognized(response.message);
+            }
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Unknown verification error.';
+            showError(message);
+        } finally {
+            verifying = false;
+            requestAbort = null;
+        }
+    };
 
     if (count < ENROLLMENT_POSES.length) {
       const nextPose = ENROLLMENT_POSES[count];
