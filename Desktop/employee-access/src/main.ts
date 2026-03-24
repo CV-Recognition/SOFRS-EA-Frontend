@@ -168,6 +168,27 @@ const getCandidateScore = (attributes: number[]): number => {
   return Math.max(rawMax, objectness * classMax);
 };
 
+const sigmoid = (value: number): number => {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+
+  return 1 / (1 + Math.exp(-value));
+};
+
+const normalizeScore = (value: number): number => {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+
+  // Some YOLO exports emit logits; convert those to probabilities.
+  if (value < 0 || value > 1) {
+    return clamp01(sigmoid(value));
+  }
+
+  return clamp01(value);
+};
+
 const clamp01 = (value: number): number => {
   if (!Number.isFinite(value)) {
     return 0;
@@ -227,25 +248,50 @@ const applyNms = (boxes: FaceBox[], iouThreshold = 0.45): FaceBox[] => {
 
 const normalizeCandidateBox = (x: number, y: number, width: number, height: number, inputWidth: number, inputHeight: number): FaceBox => {
   const useAbsoluteCoordinates = Math.max(Math.abs(x), Math.abs(y), Math.abs(width), Math.abs(height)) > 2;
-  const rawCenterX = useAbsoluteCoordinates ? x / inputWidth : x;
-  const rawCenterY = useAbsoluteCoordinates ? y / inputHeight : y;
-  const rawWidth = useAbsoluteCoordinates ? width / inputWidth : width;
-  const rawHeight = useAbsoluteCoordinates ? height / inputHeight : height;
+  const nx = useAbsoluteCoordinates ? x / inputWidth : x;
+  const ny = useAbsoluteCoordinates ? y / inputHeight : y;
+  const nw = useAbsoluteCoordinates ? width / inputWidth : width;
+  const nh = useAbsoluteCoordinates ? height / inputHeight : height;
 
-  const clampedWidth = clamp01(Math.abs(rawWidth));
-  const clampedHeight = clamp01(Math.abs(rawHeight));
-  const left = clamp01(rawCenterX - (clampedWidth / 2));
-  const top = clamp01(rawCenterY - (clampedHeight / 2));
-  const maxWidth = clamp01(1 - left);
-  const maxHeight = clamp01(1 - top);
-
-  return {
-    x: left,
-    y: top,
-    width: Math.min(clampedWidth, maxWidth),
-    height: Math.min(clampedHeight, maxHeight),
+  // Decoder A: [cx, cy, w, h]
+  const aWidth = clamp01(Math.abs(nw));
+  const aHeight = clamp01(Math.abs(nh));
+  const aLeft = clamp01(nx - (aWidth / 2));
+  const aTop = clamp01(ny - (aHeight / 2));
+  const a: FaceBox = {
+    x: aLeft,
+    y: aTop,
+    width: Math.min(aWidth, clamp01(1 - aLeft)),
+    height: Math.min(aHeight, clamp01(1 - aTop)),
     confidence: 0,
   };
+
+  // Decoder B: [x1, y1, x2, y2]
+  const left = clamp01(Math.min(nx, nw));
+  const top = clamp01(Math.min(ny, nh));
+  const right = clamp01(Math.max(nx, nw));
+  const bottom = clamp01(Math.max(ny, nh));
+  const b: FaceBox = {
+    x: left,
+    y: top,
+    width: clamp01(right - left),
+    height: clamp01(bottom - top),
+    confidence: 0,
+  };
+
+  // Prefer the tighter plausible box when both formats decode.
+  const areaA = a.width * a.height;
+  const areaB = b.width * b.height;
+
+  if (areaA === 0) {
+    return b;
+  }
+
+  if (areaB === 0) {
+    return a;
+  }
+
+  return areaB < areaA ? b : a;
 };
 
 const extractFaceCandidates = (output: OnnxTensor, threshold: number, inputWidth: number, inputHeight: number): FaceBox[] => {
@@ -268,7 +314,7 @@ const extractFaceCandidates = (output: OnnxTensor, threshold: number, inputWidth
       const width = data[offset + 2] ?? 0;
       const height = data[offset + 3] ?? 0;
       const attributes = Array.from(data.slice(offset, offset + dimensionB));
-      const score = getCandidateScore(attributes);
+      const score = normalizeScore(getCandidateScore(attributes));
 
       if (score >= threshold) {
         const box = normalizeCandidateBox(x, y, width, height, inputWidth, inputHeight);
@@ -287,7 +333,7 @@ const extractFaceCandidates = (output: OnnxTensor, threshold: number, inputWidth
       attributes.push(data[index * dimensionB + candidate] ?? 0);
     }
 
-    const score = getCandidateScore(attributes);
+    const score = normalizeScore(getCandidateScore(attributes));
 
     if (score >= threshold) {
       const box = normalizeCandidateBox(
@@ -315,7 +361,62 @@ const isForegroundFace = (face: FaceBox): boolean => {
   return area >= 0.06 && inFocusZone;
 };
 
+const isPlausibleFaceCandidate = (face: FaceBox): boolean => {
+  const area = face.width * face.height;
+  const aspectRatio = face.width > 0 ? (face.height / face.width) : 0;
+  const centerX = face.x + (face.width / 2);
+  const centerY = face.y + (face.height / 2);
+  const inBroadZone = centerX >= 0.08 && centerX <= 0.92 && centerY >= 0.08 && centerY <= 0.92;
+
+  if (!inBroadZone) {
+    return false;
+  }
+
+  if (area < 0.02 || area > 0.72) {
+    return false;
+  }
+
+  return aspectRatio >= 0.7 && aspectRatio <= 1.8;
+};
+
+const rankFaceCandidates = (faces: FaceBox[]): FaceBox[] => {
+  const scored = faces.map((face) => {
+    const area = face.width * face.height;
+    const centerX = face.x + (face.width / 2);
+    const centerY = face.y + (face.height / 2);
+    const dx = centerX - 0.5;
+    const dy = centerY - 0.5;
+    const centerDistance = Math.sqrt((dx * dx) + (dy * dy));
+    const centerScore = clamp01(1 - (centerDistance / 0.72));
+    const areaScore = clamp01(area / 0.18);
+    const aspectRatio = face.width > 0 ? (face.height / face.width) : 0;
+    const aspectScore = clamp01(1 - (Math.abs(aspectRatio - 1) / 1.2));
+    const score = (face.confidence * 0.55) + (areaScore * 0.25) + (centerScore * 0.15) + (aspectScore * 0.05);
+
+    return { face, score };
+  });
+
+  scored.sort((left, right) => right.score - left.score);
+  return scored.map((entry) => entry.face);
+};
+
+const selectFaceCandidates = (faces: FaceBox[]): FaceBox[] => {
+  const plausible = faces.filter(isPlausibleFaceCandidate);
+
+  if (plausible.length > 0) {
+    return rankFaceCandidates(plausible);
+  }
+
+  return rankFaceCandidates(faces);
+};
+
 const runFaceDetection = async (request: FaceDetectionRequest): Promise<FaceDetectionResponse> => {
+  console.log('Received face detection request:', {
+    tensorLength: request.tensor?.length,
+    width: request.width,
+    height: request.height,
+    threshold: request.threshold,
+  });
   if (!request.tensor || !Array.isArray(request.tensor) || request.tensor.length === 0) {
     return {
       detected: false,
@@ -329,10 +430,14 @@ const runFaceDetection = async (request: FaceDetectionRequest): Promise<FaceDete
       faces: [],
     };
   }
+  console.log('Valid tensor length:', request.tensor.length);
 
   const expectedLength = request.width * request.height * 3;
+  console.log('Expected tensor length:', expectedLength);
+
 
   if (request.tensor.length !== expectedLength) {
+    console.log(`Tensor length mismatch. Expected ${expectedLength}, received ${request.tensor.length}.`);
     return {
       detected: false,
       confidence: 0,
@@ -345,11 +450,16 @@ const runFaceDetection = async (request: FaceDetectionRequest): Promise<FaceDete
       faces: [],
     };
   }
+  console.log('Tensor length matches expected length.');
 
   const session = await ensureFaceSession();
   const onnx = await loadOnnxModule();
-  const inputName = session.inputNames[0];
+  console.log('Session and ONNX module loaded successfully.');
 
+  const inputName = session.inputNames[0];
+  console.log('Running ONNX session with input name:', inputName);
+
+  console.log('Input tensor sample:', request.tensor.slice(0, 10));
   if (!inputName) {
     return {
       detected: false,
@@ -363,6 +473,7 @@ const runFaceDetection = async (request: FaceDetectionRequest): Promise<FaceDete
       faces: [],
     };
   }
+  console.log('Creating input tensor for ONNX session.');
 
   const inputTensor = new onnx.Tensor('float32', Float32Array.from(request.tensor), [1, 3, request.height, request.width]);
   const outputs = await session.run({ [inputName]: inputTensor });
@@ -384,7 +495,8 @@ const runFaceDetection = async (request: FaceDetectionRequest): Promise<FaceDete
   }
 
   const threshold = request.threshold ?? 0.35;
-  const faces = extractFaceCandidates(firstOutput, threshold, request.width, request.height);
+  const detectedFaces = extractFaceCandidates(firstOutput, threshold, request.width, request.height);
+  const faces = selectFaceCandidates(detectedFaces).slice(0, 5);
   const primaryFace = faces[0] ?? null;
   const confidence = primaryFace?.confidence ?? 0;
   const hasSingleForegroundFace = primaryFace !== null && faces.length === 1 && isForegroundFace(primaryFace);
@@ -418,6 +530,12 @@ const runFaceDetection = async (request: FaceDetectionRequest): Promise<FaceDete
 
 ipcMain.handle('detector:face', async (_event, request: FaceDetectionRequest): Promise<FaceDetectionResponse> => {
   try {
+    console.log('Received face detection request via IPC:', {
+      tensorLength: request.tensor?.length,
+      width: request.width,
+      height: request.height,
+      threshold: request.threshold,
+    });
     return await runFaceDetection(request);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown detection error';

@@ -296,12 +296,17 @@ export const createMainScreenPage = (): MainScreenView => {
         mobilePanel.style.display = 'grid';
     };
 
+    const dataUrlToJpegFile = async (dataUrl: string): Promise<File> => {
+        const blob = await fetch(dataUrl).then((response) => response.blob());
+        return new File([blob], 'face.jpg', { type: 'image/jpeg' });
+    };
+
     const runVerification = async (detection: FaceDetectionResponse): Promise<void> => {
         if (!detection.primaryFace || verifying || loopPaused) {
             return;
         }
 
-        const snapshot = camera.captureFrameJpeg(640, 0.9);
+        const snapshot = camera.captureFrameJpeg(1080, 0.9);
         if (!snapshot) {
             return;
         }
@@ -316,19 +321,10 @@ export const createMainScreenPage = (): MainScreenView => {
             setStage('uploading', 'Sending to API', 'Uploading captured face to verification service.');
             setProgressTarget(56);
 
+            const imageFile = await dataUrlToJpegFile(snapshot);
+
             const response = await verifyFace({
-                imageBase64: snapshot,
-                detector: {
-                    confidence: detection.confidence,
-                    faceCount: detection.faceCount,
-                    boundingBox: {
-                        x: detection.primaryFace.x,
-                        y: detection.primaryFace.y,
-                        width: detection.primaryFace.width,
-                        height: detection.primaryFace.height,
-                    },
-                },
-                source: 'desktop',
+                imageFile
             }, requestAbort.signal);
 
             setStage('verifying', 'Verifying response', 'Evaluating recognition response and policy checks.');
@@ -368,7 +364,7 @@ export const createMainScreenPage = (): MainScreenView => {
                 tensor: Array.from(tensor),
                 width: 640,
                 height: 640,
-                threshold: 0.35,
+                threshold: 0.5,
             });
 
             camera.setFaceOverlay(response.primaryFace);
