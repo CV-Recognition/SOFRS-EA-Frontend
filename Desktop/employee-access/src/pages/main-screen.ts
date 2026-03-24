@@ -107,7 +107,7 @@ export const createMainScreenPage = (): MainScreenView => {
     resultActions.className = 'result-actions';
 
     const retryButton = document.createElement('button');
-    retryButton.className = 'action-btn';
+    retryButton.className = 'action-btn retry-btn';
     retryButton.type = 'button';
     retryButton.textContent = 'Retry Scan';
 
@@ -123,7 +123,7 @@ export const createMainScreenPage = (): MainScreenView => {
     mobileSetupButton.dataset.variant = 'secondary';
     mobileSetupButton.textContent = 'Use Mobile App';
 
-    resultActions.append(retryButton, desktopSetupButton, mobileSetupButton);
+    resultActions.append(desktopSetupButton, mobileSetupButton);
     resultCard.append(resultTitle, resultCopy, resultMeta, resultActions);
 
     const mobilePanel = document.createElement('section');
@@ -167,7 +167,7 @@ export const createMainScreenPage = (): MainScreenView => {
 
     desktopPanel.append(desktopTitle, desktopCopy, desktopProgress, desktopCaptureButton);
 
-    overlay.append(header, stageMessage, resultCard, mobilePanel, desktopPanel, bottomPanel);
+    overlay.append(header, stageMessage, resultCard, mobilePanel, desktopPanel, bottomPanel, retryButton);
     shell.append(camera.element, overlay);
 
     let detectionTimer: ReturnType<typeof setInterval> | null = null;
@@ -364,7 +364,7 @@ export const createMainScreenPage = (): MainScreenView => {
                 tensor: Array.from(tensor),
                 width: 640,
                 height: 640,
-                threshold: 0.5,
+                threshold: 0.35,
             });
 
             camera.setFaceOverlay(response.primaryFace);
