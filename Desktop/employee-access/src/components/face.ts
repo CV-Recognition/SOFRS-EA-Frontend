@@ -106,18 +106,39 @@ export const createFacePane = (): CameraPane => {
         setFaceOverlay(null);
     };
 
+    const drawSquareFrame = (targetSize: number): boolean => {
+        if (!context || !video.videoWidth || !video.videoHeight) {
+            return false;
+        }
+
+        const sourceSize = Math.min(video.videoWidth, video.videoHeight);
+        const sourceX = Math.floor((video.videoWidth - sourceSize) / 2);
+        const sourceY = Math.floor((video.videoHeight - sourceSize) / 2);
+
+        canvas.width = targetSize;
+        canvas.height = targetSize;
+        context.drawImage(
+            video,
+            sourceX,
+            sourceY,
+            sourceSize,
+            sourceSize,
+            0,
+            0,
+            targetSize,
+            targetSize,
+        );
+        return true;
+    };
+
     const captureFrameTensor = (targetSize = 640): Float32Array | null => {
         if (!context) {
             return null;
         }
 
-        if (!video.videoWidth || !video.videoHeight) {
+        if (!drawSquareFrame(targetSize)) {
             return null;
         }
-
-        canvas.width = targetSize;
-        canvas.height = targetSize;
-        context.drawImage(video, 0, 0, targetSize, targetSize);
 
         const imageData = context.getImageData(0, 0, targetSize, targetSize);
         const pixelData = imageData.data;
@@ -139,13 +160,9 @@ export const createFacePane = (): CameraPane => {
             return null;
         }
 
-        if (!video.videoWidth || !video.videoHeight) {
+        if (!drawSquareFrame(targetSize)) {
             return null;
         }
-
-        canvas.width = targetSize;
-        canvas.height = targetSize;
-        context.drawImage(video, 0, 0, targetSize, targetSize);
         return canvas.toDataURL('image/jpeg', quality);
     };
 
