@@ -14,12 +14,16 @@
 ### Completed
 - Initial folder structure setup.
 - Basic implementation of Mobile app (6 screens, context, camera scan).
+- Fixed YOLO face detection: removed dual-decoder heuristic, raised area thresholds.
+- Fixed backend verification: corrected verifyFace call, `.env` base URL, and health check.
 
 ### Next Steps
-- Implement frontend facial tracking (bounding box detection).
-- Integrate Desktop/Mobile with Backend via API endpoints.
 - Continue development as outlined in sub-project documentation.
+- Implement proper enrollment flow (desktop + mobile).
 
 ## Architecture Decisions
 - Monorepo-style structure containing the different clients and the backend.
 - Face matching relies on the backend, while client apps capture and detect faces.
+- YOLOv26s outputs [cx,cy,w,h] format — single-decoder conversion only (no dual-decoder guessing).
+- Health check in Electron main process uses native `node:http` (not `import.meta.env`).
+

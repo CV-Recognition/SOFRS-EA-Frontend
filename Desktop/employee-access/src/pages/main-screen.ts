@@ -317,15 +317,15 @@ export const createMainScreenPage = (): MainScreenView => {
 
         requestAbort = new AbortController();
 
+        console.log('Captured face image, starting verification process.');
+
         try {
             setStage('uploading', 'Sending to API', 'Uploading captured face to verification service.');
             setProgressTarget(56);
 
             const imageFile = await dataUrlToJpegFile(snapshot);
 
-            const response = await verifyFace({
-                ...imageFile,
-            }, "verification", requestAbort.signal);
+            const response = await verifyFace(imageFile, "verification", requestAbort.signal);
 
             setStage('verifying', 'Verifying response', 'Evaluating recognition response and policy checks.');
             setProgressTarget(85);
@@ -359,6 +359,7 @@ export const createMainScreenPage = (): MainScreenView => {
             return;
         }
 
+        console.log('Captured frame tensor, sending to face detection module.');
         try {
             const response = await window.detector.detectFace({
                 tensor: Array.from(tensor),
@@ -370,29 +371,34 @@ export const createMainScreenPage = (): MainScreenView => {
             camera.setFaceOverlay(response.primaryFace);
 
             if (!response.modelReady) {
+                console.log('Face detection model is still loading.');
                 showError(response.message);
                 return;
             }
 
             if (response.reasonCode === 'multiple-faces') {
+                console.log('Multiple faces detected in the frame.');
                 setStage('detecting', 'Single face required', 'Only one foreground face can be in front of the camera.');
                 setProgressTarget(10);
                 return;
             }
 
             if (response.reasonCode === 'face-out-of-zone') {
+                console.log('Face detected but not properly aligned.');
                 setStage('detecting', 'Move closer', 'Center your face inside the guide and stay still.');
                 setProgressTarget(14);
                 return;
             }
 
             if (!response.detected) {
+                console.log('No face detected in the current frame.');
                 setStage('detecting', 'Face not found', 'Align your face to start verification.');
                 setProgressTarget(8);
                 return;
             }
 
             if (response.hasSingleForegroundFace) {
+                console.log('Stable face detected, proceeding to verification.');
                 setStage('detecting', 'Face locked', 'Stable face found. Starting verification sequence.');
                 setProgressTarget(22);
                 await runVerification(response);

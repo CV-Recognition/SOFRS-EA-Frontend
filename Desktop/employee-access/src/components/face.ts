@@ -112,6 +112,8 @@ export const createFacePane = (): CameraPane => {
             return false;
         }
 
+        console.log('Drawing video frame to canvas with target size:', targetSize);
+
         const sourceSize = Math.min(video.videoWidth, video.videoHeight);
         const sourceX = Math.floor((video.videoWidth - sourceSize) / 2);
         const sourceY = Math.floor((video.videoHeight - sourceSize) / 2);
@@ -156,7 +158,7 @@ export const createFacePane = (): CameraPane => {
         return tensor;
     };
 
-    const captureFrameJpeg = (targetSize = 1080, quality = 0.88): string | null => {
+    const captureFrameJpeg = (targetSize = 640, quality = 0.88): string | null => {
         if (!context) {
             return null;
         }
@@ -167,7 +169,7 @@ export const createFacePane = (): CameraPane => {
         return canvas.toDataURL('image/jpeg', quality);
     };
 
-    const captureFrameBlob = async (targetSize = 1080, quality = 0.88): Promise<Blob | null> => {
+    const captureFrameBlob = async (targetSize = 640, quality = 0.88): Promise<Blob | null> => {
         if (!context) {
             return null;
         }

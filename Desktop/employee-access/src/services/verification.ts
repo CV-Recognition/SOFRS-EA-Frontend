@@ -27,9 +27,33 @@ export type VerifyFaceResponse = {
 };
 
 const getVerifyEndpoint = (): string => {
-    const endpoint = import.meta.env.BASE_URL + '/api/verify-face';
+    const endpoint = import.meta.env.VITE_API_BASE_URL + '/image/search';
 
     return endpoint;
+};
+
+// Send a Health Check to the API to verify it's reachable and responding correctly
+export const checkApiHealth = async (): Promise<boolean> => {
+    try {
+        const response = await fetch(import.meta.env.VITE_API_BASE_URL + '/health', {
+            method: 'GET',
+            headers: {
+                'X-API-Key': import.meta.env.VITE_API_KEY || '',
+            },
+        });
+
+        if (!response.ok) {
+            console.error(`API health check failed with status ${response.status}`);
+            return false;
+        } else {
+            const data = await response.json();
+            console.log('API health check response:', data);
+            return data.status === 'healthy';
+        }
+    } catch (error) {
+        console.error('API health check error:', error);
+        return false;
+    }
 };
 
 const toNumber = (value: unknown): number => {
@@ -149,6 +173,8 @@ export const verifyFace = async (
     const formData = new FormData();
     formData.append("image", file);
     formData.append("database_path", databasePath);
+
+    console.log("Sending verification request to:", getVerifyEndpoint());
 
     const response = await fetch(getVerifyEndpoint(), {
         method: "POST",

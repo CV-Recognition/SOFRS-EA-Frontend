@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain } from 'electron';
 import fs from 'node:fs';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
+// Health check is performed inline using node:http (import.meta.env is unavailable in main).
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -45,6 +46,36 @@ const createWindow = () => {
 
   mainWindow.maximize();
 };
+
+// Ping health endpoint on app start to warm up the API and verify connectivity.
+void (async () => {
+  const baseUrl = process.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000';
+  const apiKey = process.env.VITE_API_KEY ?? '';
+  try {
+    const http = await import('node:http');
+    const url = new URL('/health', baseUrl);
+    const req = http.request(url, { method: 'GET', headers: { 'X-API-Key': apiKey }, timeout: 5000 }, (res) => {
+      let body = '';
+      res.on('data', (chunk: Buffer) => { body += chunk.toString(); });
+      res.on('end', () => {
+        try {
+          const data = JSON.parse(body);
+          if (data.status !== 'healthy') {
+            console.error('API health check returned unhealthy status:', data);
+          }
+        } catch {
+          console.error('API health check returned non-JSON response.');
+        }
+      });
+    });
+    req.on('error', (err: Error) => {
+      console.error('API health check failed on initial load:', err.message);
+    });
+    req.end();
+  } catch (err) {
+    console.error('API health check failed on initial load. Please check backend connectivity.', err);
+  }
+})();
 
 type FaceDetectionRequest = {
   tensor: number[];
@@ -246,52 +277,23 @@ const applyNms = (boxes: FaceBox[], iouThreshold = 0.45): FaceBox[] => {
   return selected;
 };
 
-const normalizeCandidateBox = (x: number, y: number, width: number, height: number, inputWidth: number, inputHeight: number): FaceBox => {
-  const useAbsoluteCoordinates = Math.max(Math.abs(x), Math.abs(y), Math.abs(width), Math.abs(height)) > 2;
-  const nx = useAbsoluteCoordinates ? x / inputWidth : x;
-  const ny = useAbsoluteCoordinates ? y / inputHeight : y;
-  const nw = useAbsoluteCoordinates ? width / inputWidth : width;
-  const nh = useAbsoluteCoordinates ? height / inputHeight : height;
+const normalizeCandidateBox = (cx: number, cy: number, w: number, h: number, inputWidth: number, inputHeight: number): FaceBox => {
+  const isAbsolute = Math.max(Math.abs(cx), Math.abs(cy), Math.abs(w), Math.abs(h)) > 2;
+  const nCx = isAbsolute ? cx / inputWidth : cx;
+  const nCy = isAbsolute ? cy / inputHeight : cy;
+  const nW = clamp01(Math.abs(isAbsolute ? w / inputWidth : w));
+  const nH = clamp01(Math.abs(isAbsolute ? h / inputHeight : h));
 
-  // Decoder A: [cx, cy, w, h]
-  const aWidth = clamp01(Math.abs(nw));
-  const aHeight = clamp01(Math.abs(nh));
-  const aLeft = clamp01(nx - (aWidth / 2));
-  const aTop = clamp01(ny - (aHeight / 2));
-  const a: FaceBox = {
-    x: aLeft,
-    y: aTop,
-    width: Math.min(aWidth, clamp01(1 - aLeft)),
-    height: Math.min(aHeight, clamp01(1 - aTop)),
+  const boxLeft = clamp01(nCx - (nW / 2));
+  const boxTop = clamp01(nCy - (nH / 2));
+
+  return {
+    x: boxLeft,
+    y: boxTop,
+    width: Math.min(nW, clamp01(1 - boxLeft)),
+    height: Math.min(nH, clamp01(1 - boxTop)),
     confidence: 0,
   };
-
-  // Decoder B: [x1, y1, x2, y2]
-  const left = clamp01(Math.min(nx, nw));
-  const top = clamp01(Math.min(ny, nh));
-  const right = clamp01(Math.max(nx, nw));
-  const bottom = clamp01(Math.max(ny, nh));
-  const b: FaceBox = {
-    x: left,
-    y: top,
-    width: clamp01(right - left),
-    height: clamp01(bottom - top),
-    confidence: 0,
-  };
-
-  // Prefer the tighter plausible box when both formats decode.
-  const areaA = a.width * a.height;
-  const areaB = b.width * b.height;
-
-  if (areaA === 0) {
-    return b;
-  }
-
-  if (areaB === 0) {
-    return a;
-  }
-
-  return areaB < areaA ? b : a;
 };
 
 const extractFaceCandidates = (output: OnnxTensor, threshold: number, inputWidth: number, inputHeight: number): FaceBox[] => {
@@ -358,7 +360,7 @@ const isForegroundFace = (face: FaceBox): boolean => {
   const centerY = face.y + (face.height / 2);
   const inFocusZone = centerX >= 0.18 && centerX <= 0.82 && centerY >= 0.15 && centerY <= 0.85;
 
-  return area >= 0.06 && inFocusZone;
+  return area >= 0.08 && inFocusZone;
 };
 
 const isPlausibleFaceCandidate = (face: FaceBox): boolean => {
@@ -372,7 +374,7 @@ const isPlausibleFaceCandidate = (face: FaceBox): boolean => {
     return false;
   }
 
-  if (area < 0.02 || area > 0.72) {
+  if (area < 0.04 || area > 0.72) {
     return false;
   }
 
@@ -411,12 +413,6 @@ const selectFaceCandidates = (faces: FaceBox[]): FaceBox[] => {
 };
 
 const runFaceDetection = async (request: FaceDetectionRequest): Promise<FaceDetectionResponse> => {
-  console.log('Received face detection request:', {
-    tensorLength: request.tensor?.length,
-    width: request.width,
-    height: request.height,
-    threshold: request.threshold,
-  });
   if (!request.tensor || !Array.isArray(request.tensor) || request.tensor.length === 0) {
     return {
       detected: false,
@@ -430,14 +426,11 @@ const runFaceDetection = async (request: FaceDetectionRequest): Promise<FaceDete
       faces: [],
     };
   }
-  console.log('Valid tensor length:', request.tensor.length);
 
   const expectedLength = request.width * request.height * 3;
-  console.log('Expected tensor length:', expectedLength);
 
 
   if (request.tensor.length !== expectedLength) {
-    console.log(`Tensor length mismatch. Expected ${expectedLength}, received ${request.tensor.length}.`);
     return {
       detected: false,
       confidence: 0,
@@ -450,16 +443,12 @@ const runFaceDetection = async (request: FaceDetectionRequest): Promise<FaceDete
       faces: [],
     };
   }
-  console.log('Tensor length matches expected length.');
 
   const session = await ensureFaceSession();
   const onnx = await loadOnnxModule();
-  console.log('Session and ONNX module loaded successfully.');
 
   const inputName = session.inputNames[0];
-  console.log('Running ONNX session with input name:', inputName);
 
-  console.log('Input tensor sample:', request.tensor.slice(0, 10));
   if (!inputName) {
     return {
       detected: false,
@@ -473,7 +462,6 @@ const runFaceDetection = async (request: FaceDetectionRequest): Promise<FaceDete
       faces: [],
     };
   }
-  console.log('Creating input tensor for ONNX session.');
 
   const inputTensor = new onnx.Tensor('float32', Float32Array.from(request.tensor), [1, 3, request.height, request.width]);
   const outputs = await session.run({ [inputName]: inputTensor });
@@ -530,12 +518,6 @@ const runFaceDetection = async (request: FaceDetectionRequest): Promise<FaceDete
 
 ipcMain.handle('detector:face', async (_event, request: FaceDetectionRequest): Promise<FaceDetectionResponse> => {
   try {
-    console.log('Received face detection request via IPC:', {
-      tensorLength: request.tensor?.length,
-      width: request.width,
-      height: request.height,
-      threshold: request.threshold,
-    });
     return await runFaceDetection(request);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown detection error';
