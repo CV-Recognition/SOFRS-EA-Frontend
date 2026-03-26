@@ -1,28 +1,28 @@
 {
-	"extends": "expo/tsconfig.base",
-	"compilerOptions": {
-		"target": "ESNext",
-		"module": "ESNext",
-		"allowJs": true,
-		"skipLibCheck": true,
-		"esModuleInterop": true,
-		"noImplicitAny": true,
-		"sourceMap": true,
-		"outDir": "dist",
-		"moduleResolution": "bundler",
-		"resolveJsonModule": true,
-		"strict": true,
-		"paths": {
-			"@/*": ["./*"]
-		},
-		"forceConsistentCasingInFileNames": true
-	},
-	"include": [
-		"**/*.ts",
-		"**/*.tsx",
-		"app/**/*.tsx",
-		".expo/types/**/*.ts",
-		"expo-env.d.ts",
-		"--jsx"
-	]
+    "extends": "expo/tsconfig.base",
+    "compilerOptions": {
+        "target": "ESNext",
+        "module": "ESNext",
+        "allowJs": true,
+        "skipLibCheck": true,
+        "esModuleInterop": true,
+        "noImplicitAny": true,
+        "sourceMap": true,
+        "outDir": "dist",
+        "moduleResolution": "bundler",
+        "resolveJsonModule": true,
+        "strict": true,
+        "paths": {
+            "@/*": ["./*"]
+        },
+        "forceConsistentCasingInFileNames": true
+    },
+    "include": [
+        "**/*.ts",
+        "**/*.tsx",
+        "app/**/*.tsx",
+        ".expo/types/**/*.ts",
+        "expo-env.d.ts",
+        "--jsx"
+    ]
 }

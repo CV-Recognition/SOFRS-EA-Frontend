@@ -17,6 +17,7 @@ export type CameraPane = {
     captureFrameJpeg: (targetSize?: number, quality?: number) => string | null;
     captureFrameBlob: (targetSize?: number, quality?: number) => Promise<Blob | null>;
     setFaceOverlay: (face: OverlayFaceBox | null) => void;
+    getCameraAvailable: () => boolean;
 };
 
 const createStatusChip = (): HTMLSpanElement => {
@@ -57,6 +58,7 @@ export const createFacePane = (): CameraPane => {
     frame.append(statusChip, video, placeholder, faceGuide, faceOverlay);
 
     let stream: MediaStream | null = null;
+    let cameraAvailable = false;
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d', { willReadFrequently: true });
 
@@ -67,6 +69,7 @@ export const createFacePane = (): CameraPane => {
 
     const start = async (): Promise<void> => {
         if (!navigator.mediaDevices?.getUserMedia) {
+            cameraAvailable = false;
             setStatus('Camera unsupported', 'error');
             placeholder.textContent = 'Camera API is unavailable on this device.';
             return;
@@ -83,8 +86,10 @@ export const createFacePane = (): CameraPane => {
             });
             video.srcObject = stream;
             placeholder.style.display = 'none';
+            cameraAvailable = true;
             setStatus('Camera online', 'ok');
         } catch (error) {
+            cameraAvailable = false;
             const message = error instanceof Error ? error.message : 'Unknown camera error';
             setStatus('Camera blocked', 'error');
             placeholder.style.display = 'flex';
@@ -103,6 +108,7 @@ export const createFacePane = (): CameraPane => {
         stream = null;
         video.srcObject = null;
         placeholder.style.display = 'flex';
+        cameraAvailable = false;
         setStatus('Camera stopped', 'warn');
         setFaceOverlay(null);
     };
@@ -200,6 +206,8 @@ export const createFacePane = (): CameraPane => {
         confidenceLabel.textContent = `${(face.confidence * 100).toFixed(1)}%`;
     };
 
+    const getCameraAvailable = (): boolean => cameraAvailable;
+
     return {
         element: frame,
         start,
@@ -209,5 +217,7 @@ export const createFacePane = (): CameraPane => {
         captureFrameJpeg,
         captureFrameBlob,
         setFaceOverlay,
+        getCameraAvailable,
     };
 };
+

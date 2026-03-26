@@ -6,6 +6,8 @@ declare module '*.css' {
 }
 
 interface ImportMetaEnv {
+	readonly VITE_API_BASE_URL?: string;
+	readonly VITE_API_KEY?: string;
 	readonly VITE_VERIFY_ENDPOINT?: string;
 	readonly VITE_MOBILE_SETUP_URL?: string;
 }
@@ -53,4 +55,11 @@ interface Window {
 	detector: {
 		detectFace: (request: FaceDetectionRequest) => Promise<FaceDetectionResponse>;
 	};
+	relay: {
+		getPort: () => Promise<number>;
+		getLocalIp: () => Promise<string>;
+		onPhoto: (callback: (dataUrl: string) => void) => void;
+		removePhotoListener: () => void;
+	};
 }
+

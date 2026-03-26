@@ -1,4 +1,16 @@
-import { defineConfig } from 'vite';
+import { defineConfig } from "vite";
 
 // https://vitejs.dev/config
-export default defineConfig({});
+// Externalize native Node.js packages so Vite doesn't try to bundle them.
+export default defineConfig({
+    build: {
+        rollupOptions: {
+            external: [
+                "ws",
+                "bufferutil",
+                "utf-8-validate",
+                "onnxruntime-node",
+            ],
+        },
+    },
+});

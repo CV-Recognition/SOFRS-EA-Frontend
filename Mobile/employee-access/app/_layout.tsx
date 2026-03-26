@@ -30,6 +30,12 @@ export default function RootLayout() {
 						animation: "fade",
 					}}
 				/>
+				<Stack.Screen
+					name="relay-capture"
+					options={{
+						animation: "slide_from_bottom",
+					}}
+				/>
 			</Stack>
 			<StatusBar style="light" />
 		</UserProvider>

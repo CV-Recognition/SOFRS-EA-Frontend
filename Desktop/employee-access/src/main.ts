@@ -1,6 +1,8 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
+import { WebSocketServer, WebSocket } from 'ws';
 import started from 'electron-squirrel-startup';
 // Health check is performed inline using node:http (import.meta.env is unavailable in main).
 
@@ -536,15 +538,92 @@ ipcMain.handle('detector:face', async (_event, request: FaceDetectionRequest): P
   }
 });
 
+// ─── WebSocket Relay Server (Mobile Camera Fallback) ───
+let relayPort = 0;
+let relayServer: WebSocketServer | null = null;
+
+const startRelayServer = (): void => {
+  if (relayServer) return;
+
+  relayServer = new WebSocketServer({ port: 0, host: '0.0.0.0' });
+
+  relayServer.on('listening', () => {
+    const addr = relayServer?.address();
+    if (addr && typeof addr === 'object') {
+      relayPort = addr.port;
+      console.log(`Relay WebSocket server listening on port ${relayPort}`);
+    }
+  });
+
+  relayServer.on('connection', (socket: WebSocket) => {
+    console.log('Mobile device connected to relay.');
+
+    socket.on('message', (data: Buffer | string) => {
+      const payload = typeof data === 'string' ? data : data.toString('utf-8');
+
+      // Forward photo to all renderer windows
+      for (const win of BrowserWindow.getAllWindows()) {
+        win.webContents.send('relay:photo', payload);
+      }
+
+      // Acknowledge receipt to mobile
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ status: 'received' }));
+      }
+    });
+
+    socket.on('error', (err: Error) => {
+      console.error('Relay socket error:', err.message);
+    });
+  });
+
+  relayServer.on('error', (err: Error) => {
+    console.error('Relay server error:', err.message);
+    relayServer = null;
+  });
+};
+
+const getLocalIpAddress = (): string => {
+  const interfaces = os.networkInterfaces();
+  for (const name of Object.keys(interfaces)) {
+    const entries = interfaces[name];
+    if (!entries) continue;
+    for (const entry of entries) {
+      if (entry.family === 'IPv4' && !entry.internal) {
+        return entry.address;
+      }
+    }
+  }
+  return '127.0.0.1';
+};
+
+ipcMain.handle('relay:getPort', (): number => {
+  if (!relayServer) {
+    startRelayServer();
+  }
+  return relayPort;
+});
+
+ipcMain.handle('relay:getLocalIp', (): string => {
+  return getLocalIpAddress();
+});
+
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
-app.on('ready', createWindow);
+app.on('ready', () => {
+  startRelayServer();
+  createWindow();
+});
 
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
 app.on('window-all-closed', () => {
+  if (relayServer) {
+    relayServer.close();
+    relayServer = null;
+  }
   if (process.platform !== 'darwin') {
     app.quit();
   }
@@ -557,6 +636,3 @@ app.on('activate', () => {
     createWindow();
   }
 });
-
-// In this file you can include the rest of your app's specific main process
-// code. You can also put them in separate files and import them here.

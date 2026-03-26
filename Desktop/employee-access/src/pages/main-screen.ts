@@ -1,5 +1,6 @@
 import { createFacePane } from '../components/face';
 import { verifyFace } from '../services/verification';
+import type { VerifyFaceResponse, EmployeeRecord } from '../services/verification';
 
 type MainScreenView = {
     element: HTMLElement;
@@ -18,6 +19,7 @@ type Stage =
     | 'recognized'
     | 'unrecognized'
     | 'desktop-setup'
+    | 'no-camera'
     | 'error';
 
 const ENROLLMENT_POSES = ['Front', 'Left', 'Right', 'Up', 'Down'];
@@ -36,11 +38,85 @@ const getToneFromStage = (stage: Stage): StatusTone => {
         return 'ok';
     }
 
-    if (stage === 'error') {
+    if (stage === 'error' || stage === 'no-camera') {
         return 'error';
     }
 
     return 'warn';
+};
+
+const formatTimestamp = (): string => {
+    const now = new Date();
+    return now.toLocaleString('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+    });
+};
+
+const getSimilarityLevel = (similarity: number): 'high' | 'medium' | 'low' => {
+    if (similarity >= 0.8) return 'high';
+    if (similarity >= 0.6) return 'medium';
+    return 'low';
+};
+
+/**
+ * Crops a face region from a full-frame JPEG data URL using an offscreen canvas.
+ * Returns a circular-ready data URL of just the face area.
+ */
+const cropFaceFromFrame = (
+    frameDataUrl: string,
+    faceBox: { x: number; y: number; width: number; height: number },
+): Promise<string> => {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+            const fx = faceBox.x * img.width;
+            const fy = faceBox.y * img.height;
+            const fw = faceBox.width * img.width;
+            const fh = faceBox.height * img.height;
+
+            const padding = Math.max(fw, fh) * 0.25;
+            const sx = Math.max(0, fx - padding);
+            const sy = Math.max(0, fy - padding);
+            const sw = Math.min(img.width - sx, fw + padding * 2);
+            const sh = Math.min(img.height - sy, fh + padding * 2);
+
+            const size = Math.max(sw, sh);
+            const cropCanvas = document.createElement('canvas');
+            cropCanvas.width = size;
+            cropCanvas.height = size;
+            const ctx = cropCanvas.getContext('2d');
+            if (!ctx) {
+                resolve(frameDataUrl);
+                return;
+            }
+
+            ctx.drawImage(img, sx, sy, sw, sh, 0, 0, size, size);
+            resolve(cropCanvas.toDataURL('image/jpeg', 0.9));
+        };
+        img.onerror = () => resolve(frameDataUrl);
+        img.src = frameDataUrl;
+    });
+};
+
+const createDetailRow = (label: string, value: string): HTMLElement => {
+    const row = document.createElement('div');
+    row.className = 'employee-detail-row';
+
+    const labelEl = document.createElement('span');
+    labelEl.className = 'employee-detail-label';
+    labelEl.textContent = label;
+
+    const valueEl = document.createElement('span');
+    valueEl.className = 'employee-detail-value';
+    valueEl.textContent = value;
+
+    row.append(labelEl, valueEl);
+    return row;
 };
 
 export const createMainScreenPage = (): MainScreenView => {
@@ -91,8 +167,28 @@ export const createMainScreenPage = (): MainScreenView => {
     progressTrack.append(progressFill);
     bottomPanel.append(progressTrack, progressValue);
 
+    /* ── Result Card (enhanced) ── */
     const resultCard = document.createElement('section');
     resultCard.className = 'result-card';
+
+    const resultFaceRow = document.createElement('div');
+    resultFaceRow.className = 'result-face-row';
+
+    const resultFaceThumbnail = document.createElement('img');
+    resultFaceThumbnail.className = 'result-face-thumbnail';
+    resultFaceThumbnail.alt = 'Captured face';
+
+    const resultFaceInfo = document.createElement('div');
+    resultFaceInfo.className = 'result-face-info';
+
+    const resultFaceName = document.createElement('h2');
+    resultFaceName.className = 'result-face-name';
+
+    const resultFaceRole = document.createElement('p');
+    resultFaceRole.className = 'result-face-role';
+
+    resultFaceInfo.append(resultFaceName, resultFaceRole);
+    resultFaceRow.append(resultFaceThumbnail, resultFaceInfo);
 
     const resultTitle = document.createElement('h2');
     resultTitle.className = 'result-title';
@@ -100,8 +196,14 @@ export const createMainScreenPage = (): MainScreenView => {
     const resultCopy = document.createElement('p');
     resultCopy.className = 'result-copy';
 
-    const resultMeta = document.createElement('p');
-    resultMeta.className = 'result-meta';
+    const employeeDetails = document.createElement('div');
+    employeeDetails.className = 'employee-details';
+
+    const similarityBadge = document.createElement('div');
+    similarityBadge.className = 'similarity-badge';
+
+    const resultTimestamp = document.createElement('p');
+    resultTimestamp.className = 'result-timestamp';
 
     const resultActions = document.createElement('div');
     resultActions.className = 'result-actions';
@@ -124,8 +226,17 @@ export const createMainScreenPage = (): MainScreenView => {
     mobileSetupButton.textContent = 'Use Mobile App';
 
     resultActions.append(desktopSetupButton, mobileSetupButton);
-    resultCard.append(resultTitle, resultCopy, resultMeta, resultActions);
+    resultCard.append(
+        resultFaceRow,
+        resultTitle,
+        resultCopy,
+        employeeDetails,
+        similarityBadge,
+        resultTimestamp,
+        resultActions,
+    );
 
+    /* ── Mobile Panel ── */
     const mobilePanel = document.createElement('section');
     mobilePanel.className = 'mobile-panel';
 
@@ -147,6 +258,7 @@ export const createMainScreenPage = (): MainScreenView => {
 
     mobilePanel.append(mobileTitle, mobileCopy, mobileQr, mobileLink);
 
+    /* ── Desktop Enrollment Panel ── */
     const desktopPanel = document.createElement('section');
     desktopPanel.className = 'desktop-setup-panel';
 
@@ -167,7 +279,39 @@ export const createMainScreenPage = (): MainScreenView => {
 
     desktopPanel.append(desktopTitle, desktopCopy, desktopProgress, desktopCaptureButton);
 
-    overlay.append(header, stageMessage, resultCard, mobilePanel, desktopPanel, bottomPanel, retryButton);
+    /* ── No Camera Panel ── */
+    const noCameraPanel = document.createElement('section');
+    noCameraPanel.className = 'no-camera-panel';
+
+    const noCameraIcon = document.createElement('div');
+    noCameraIcon.className = 'no-camera-icon';
+    noCameraIcon.textContent = '📱';
+
+    const noCameraTitle = document.createElement('h3');
+    noCameraTitle.className = 'no-camera-title';
+    noCameraTitle.textContent = 'No Webcam Detected';
+
+    const noCameraCopy = document.createElement('p');
+    noCameraCopy.className = 'no-camera-copy';
+    noCameraCopy.textContent = 'Use your phone as a camera. Scan the QR code below with the SOFRS mobile app to take a verification photo.';
+
+    const noCameraQr = document.createElement('img');
+    noCameraQr.className = 'mobile-qr';
+    noCameraQr.alt = 'Connect mobile device QR code';
+
+    const noCameraWaiting = document.createElement('div');
+    noCameraWaiting.className = 'no-camera-waiting';
+
+    const noCameraSpinner = document.createElement('div');
+    noCameraSpinner.className = 'spinner';
+
+    const noCameraWaitingText = document.createElement('span');
+    noCameraWaitingText.textContent = 'Waiting for photo from phone…';
+
+    noCameraWaiting.append(noCameraSpinner, noCameraWaitingText);
+    noCameraPanel.append(noCameraIcon, noCameraTitle, noCameraCopy, noCameraQr, noCameraWaiting);
+
+    overlay.append(header, stageMessage, resultCard, mobilePanel, desktopPanel, noCameraPanel, bottomPanel, retryButton);
     shell.append(camera.element, overlay);
 
     let detectionTimer: ReturnType<typeof setInterval> | null = null;
@@ -178,6 +322,7 @@ export const createMainScreenPage = (): MainScreenView => {
     let verifying = false;
     let loopPaused = false;
     let enrollmentSamples: Record<string, string> = {};
+    let lastCapturedFrame: string | null = null;
 
     const setProgressTarget = (value: number): void => {
         targetProgress = Math.max(0, Math.min(100, value));
@@ -215,40 +360,119 @@ export const createMainScreenPage = (): MainScreenView => {
         resultCard.style.display = 'none';
         mobilePanel.style.display = 'none';
         desktopPanel.style.display = 'none';
+        noCameraPanel.style.display = 'none';
+        delete resultCard.dataset.outcome;
     };
 
     const setDetectingMode = (): void => {
         hidePanels();
         loopPaused = false;
         verifying = false;
+        lastCapturedFrame = null;
         setStage('detecting', 'Detecting face', 'Keep your face centered and close to the camera guide.');
         setProgressTarget(12);
         camera.setFaceOverlay(null);
     };
 
-    const showRecognized = (message: string, name: string | null, similarity: number): void => {
+    const populateEmployeeDetails = (
+        employee: EmployeeRecord | null,
+        similarity: number,
+    ): void => {
+        employeeDetails.replaceChildren();
+
+        if (employee?.department) {
+            employeeDetails.append(createDetailRow('Department', employee.department));
+        }
+        if (employee?.title) {
+            employeeDetails.append(createDetailRow('Title', employee.title));
+        }
+        if (employee?.id) {
+            employeeDetails.append(createDetailRow('ID', employee.id));
+        }
+
+        employeeDetails.append(
+            createDetailRow('Verified at', formatTimestamp()),
+        );
+
+        const level = getSimilarityLevel(similarity);
+        similarityBadge.dataset.level = level;
+        similarityBadge.textContent = `${(similarity * 100).toFixed(1)}% match`;
+        similarityBadge.style.display = similarity > 0 ? 'inline-flex' : 'none';
+
+        employeeDetails.style.display = employeeDetails.children.length > 0 ? 'grid' : 'none';
+    };
+
+    const showRecognized = async (
+        response: VerifyFaceResponse,
+        capturedFrame: string | null,
+        primaryFace: { x: number; y: number; width: number; height: number } | null,
+    ): Promise<void> => {
         hidePanels();
         resultCard.style.display = 'grid';
-        resultTitle.textContent = message;
-        resultCopy.textContent = name ? `Welcome back, ${name}.` : 'Verification successful.';
-        resultMeta.textContent = `Similarity ${(similarity * 100).toFixed(1)}%`;
+        resultCard.dataset.outcome = 'success';
+
+        const name = response.employee?.name ?? 'Unknown';
+        resultFaceName.textContent = name;
+        resultFaceRole.textContent = response.employee?.department ?? 'Employee';
+        resultTitle.textContent = response.message;
+        resultCopy.textContent = `Welcome back, ${name}.`;
+        resultTimestamp.textContent = formatTimestamp();
+
+        if (capturedFrame && primaryFace) {
+            const cropped = await cropFaceFromFrame(capturedFrame, primaryFace);
+            resultFaceThumbnail.src = cropped;
+            resultFaceThumbnail.style.display = 'block';
+        } else if (capturedFrame) {
+            resultFaceThumbnail.src = capturedFrame;
+            resultFaceThumbnail.style.display = 'block';
+        } else {
+            resultFaceThumbnail.style.display = 'none';
+        }
+
+        populateEmployeeDetails(response.employee, response.similarity);
+
         resultActions.style.display = 'grid';
         desktopSetupButton.style.display = 'none';
         mobileSetupButton.style.display = 'none';
+
         setStage('recognized', 'Access verified', 'Recognition completed. Proceed to employee records.');
         setProgressTarget(100);
         loopPaused = true;
     };
 
-    const showUnrecognized = (message: string): void => {
+    const showUnrecognized = async (
+        message: string,
+        capturedFrame: string | null,
+        primaryFace: { x: number; y: number; width: number; height: number } | null,
+    ): Promise<void> => {
         hidePanels();
         resultCard.style.display = 'grid';
+        resultCard.dataset.outcome = 'failure';
+
+        resultFaceName.textContent = 'Not recognized';
+        resultFaceRole.textContent = 'Unknown person';
         resultTitle.textContent = 'Face not recognized';
         resultCopy.textContent = message;
-        resultMeta.textContent = 'You can set up FaceID here or continue with the mobile app.';
+        resultTimestamp.textContent = formatTimestamp();
+
+        if (capturedFrame && primaryFace) {
+            const cropped = await cropFaceFromFrame(capturedFrame, primaryFace);
+            resultFaceThumbnail.src = cropped;
+            resultFaceThumbnail.style.display = 'block';
+        } else if (capturedFrame) {
+            resultFaceThumbnail.src = capturedFrame;
+            resultFaceThumbnail.style.display = 'block';
+        } else {
+            resultFaceThumbnail.style.display = 'none';
+        }
+
+        employeeDetails.style.display = 'none';
+        similarityBadge.style.display = 'none';
+
         resultActions.style.display = 'grid';
         desktopSetupButton.style.display = 'inline-flex';
         mobileSetupButton.style.display = 'inline-flex';
+
         setStage('unrecognized', 'Verification failed', 'Choose how you want to set up FaceID.');
         setProgressTarget(100);
         loopPaused = true;
@@ -257,15 +481,67 @@ export const createMainScreenPage = (): MainScreenView => {
     const showError = (message: string): void => {
         hidePanels();
         resultCard.style.display = 'grid';
-        resultTitle.textContent = 'Verification error';
+        resultCard.dataset.outcome = 'failure';
+
+        resultFaceThumbnail.style.display = 'none';
+        resultFaceName.textContent = 'Verification error';
+        resultFaceRole.textContent = '';
+        resultTitle.textContent = 'Unable to verify';
         resultCopy.textContent = message;
-        resultMeta.textContent = 'Check camera alignment or backend connectivity, then retry.';
+        resultTimestamp.textContent = formatTimestamp();
+        employeeDetails.style.display = 'none';
+        similarityBadge.style.display = 'none';
+
         resultActions.style.display = 'grid';
         desktopSetupButton.style.display = 'none';
         mobileSetupButton.style.display = 'none';
+
         setStage('error', 'Unable to continue', message);
         setProgressTarget(100);
         loopPaused = true;
+    };
+
+    const showNoCameraPanel = async (): Promise<void> => {
+        hidePanels();
+        noCameraPanel.style.display = 'grid';
+
+        setStage('no-camera', 'No webcam', 'Connect your phone to take a verification photo.');
+        setProgressTarget(0);
+        loopPaused = true;
+
+        try {
+            const [port, localIp] = await Promise.all([
+                window.relay.getPort(),
+                window.relay.getLocalIp(),
+            ]);
+
+            const relayUrl = `sofrs://relay-capture?ws=${localIp}:${port}`;
+            noCameraQr.src = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(relayUrl)}`;
+            noCameraCopy.textContent = `Scan this QR code with the SOFRS mobile app. Relay server at ${localIp}:${port}`;
+
+            window.relay.onPhoto(async (dataUrl: string) => {
+                noCameraWaitingText.textContent = 'Photo received! Verifying…';
+                setStage('verifying', 'Verifying photo', 'Processing photo received from mobile device.');
+                setProgressTarget(60);
+
+                try {
+                    const imageFile = await dataUrlToJpegFile(dataUrl);
+                    const response = await verifyFace(imageFile, 'verification');
+
+                    if (response.recognized) {
+                        await showRecognized(response, dataUrl, null);
+                    } else {
+                        await showUnrecognized(response.message, dataUrl, null);
+                    }
+                } catch (error) {
+                    const message = error instanceof Error ? error.message : 'Verification failed.';
+                    showError(message);
+                }
+            });
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Cannot start relay server.';
+            noCameraCopy.textContent = `Relay server failed: ${message}`;
+        }
     };
 
     const startDesktopEnrollment = (): void => {
@@ -311,6 +587,7 @@ export const createMainScreenPage = (): MainScreenView => {
             return;
         }
 
+        lastCapturedFrame = snapshot;
         verifying = true;
         setStage('capturing', 'Capturing frame', 'Face captured. Preparing verification request.');
         setProgressTarget(34);
@@ -330,14 +607,10 @@ export const createMainScreenPage = (): MainScreenView => {
             setStage('verifying', 'Verifying response', 'Evaluating recognition response and policy checks.');
             setProgressTarget(85);
 
-            const employeeName = response.employee?.name && typeof response.employee.name === 'string'
-                ? response.employee.name
-                : null;
-
             if (response.recognized) {
-                showRecognized(response.message, employeeName, response.similarity);
+                await showRecognized(response, lastCapturedFrame, detection.primaryFace);
             } else {
-                showUnrecognized(response.message);
+                await showUnrecognized(response.message, lastCapturedFrame, detection.primaryFace);
             }
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Unknown verification error.';
@@ -463,6 +736,12 @@ export const createMainScreenPage = (): MainScreenView => {
             runProgressAnimation();
 
             await camera.start();
+
+            if (!camera.getCameraAvailable()) {
+                await showNoCameraPanel();
+                return;
+            }
+
             setDetectingMode();
 
             await runDetection();
@@ -483,6 +762,7 @@ export const createMainScreenPage = (): MainScreenView => {
 
             stopProgressAnimation();
             camera.stop();
+            window.relay.removePhotoListener();
         },
     };
 };
