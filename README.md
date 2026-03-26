@@ -5,14 +5,15 @@ This repo will be for the Smart Office Face Recognition System for Employee Acce
 ## Table of Contents
 
 - [SOFRS-EA - Frontend](#sofrs-ea---frontend)
-  - [Table of Contents](#table-of-contents)
-  - [Project Structure](#project-structure)
-  - [Team](#team)
-    - [Team Lead](#team-lead)
-    - [Backend Developer](#backend-developer)
-    - [DevOps Engineer](#devops-engineer)
-    - [Data Scientist](#data-scientist)
-    - [Frontend Developer](#frontend-developer)
+     - [Table of Contents](#table-of-contents)
+     - [Project Structure](#project-structure)
+     - [Setup Node (AI Computer)](#setup-node-ai-computer)
+     - [Team](#team)
+          - [Team Lead](#team-lead)
+          - [Backend Developer](#backend-developer)
+          - [DevOps Engineer](#devops-engineer)
+          - [Data Scientist](#data-scientist)
+          - [Frontend Developer](#frontend-developer)
 
 ## Project Structure
 
@@ -20,6 +21,10 @@ This repository contains the following main components:
 
 - **`Desktop/employee-access/`**: The Electron and Vite-based desktop application for employee access management.
 - **`Mobile/employee-access/`**: The React Native (Expo) mobile application providing the mobile frontend interface for onboarding, facial scanning, and employee badge generation.
+
+## Setup Node (AI Computer)
+
+Run `\. "$HOME/.nvm/nvm.sh"` to enable Node on the AI computers in Kingston University.
 
 ## Team
 
@@ -77,4 +82,3 @@ This team will work on the facial tracking, ensuring that the camera detects the
 | --- | ---------------------------------------------------- | --------------------------------------- |
 
 </div>
-

@@ -1,0 +1,12 @@
+{
+	"scripts": {
+		"start": "concurrently \"npm run start:mobile\" \"npm run start:desktop\" \"npm run start:backend\"",
+		"start:mobile": "cd Mobile/employee-access && npm start",
+		"start:desktop": "cd Desktop/employee-access && npm start",
+		"start:backend": "cd Backend && uvicorn backend.main:app --host 0.0.0.0 --port 8000",
+		"lint": "concurrently \"npm run lint:mobile\" \"npm run lint:desktop\"",
+		"lint:mobile": "cd Mobile/employee-access && npm run lint",
+		"lint:desktop": "cd Desktop/employee-access && npm run lint",
+		"install:all": "cd Mobile/employee-access && npm install && cd ../../Desktop/employee-access && npm install && cd ../../Backend && source .venv/Scripts/Activate && pip install -r docs/requirements.txt"
+	}
+}
