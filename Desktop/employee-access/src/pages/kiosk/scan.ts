@@ -1,15 +1,15 @@
-import { View, navigate } from '../../renderer';
-import { createFacePane } from '../../components/face';
-import { createKioskLayoutShell } from '../../components/kiosk-layout';
-import { svgIconHtml } from '../../components/icons';
-import { verifyFace, VerifyFaceResponse } from '../../services/verification';
-import { detectFaces, FaceDetectionResult } from '../../services/face-detector';
-import { createKioskIdleScreen } from './idle';
-import { createKioskApprovedScreen } from './approved';
-import { createKioskDeniedScreen } from './denied';
+import { View, navigate } from "../../renderer";
+import { createFacePane } from "../../components/face";
+import { createKioskLayoutShell } from "../../components/kiosk-layout";
+import { svgIconHtml } from "../../components/icons";
+import { verifyFace, VerifyFaceResponse } from "../../services/verification";
+import { detectFaces, FaceDetectionResult } from "../../services/face-detector";
+import { createKioskIdleScreen } from "./idle";
+import { createKioskApprovedScreen } from "./approved";
+import { createKioskDeniedScreen } from "./denied";
 // import type { DetectedFace } from '../../services/face-detector';
 
-type ScanFeedbackTone = 'ok' | 'warn' | 'error';
+type ScanFeedbackTone = "ok" | "warn" | "error";
 
 type LogPayload = Record<string, unknown>;
 
@@ -43,7 +43,7 @@ const COUNTDOWN_SECONDS = 3;
 //   };
 // };
 
-export const createKioskScanScreen = (mode: 'check-in' | 'check-out'): View => {
+export const createKioskScanScreen = (mode: "check-in" | "check-out"): View => {
   const logPrefix = `[kiosk-scan:${mode}]`;
   const logInfo = (message: string, payload?: LogPayload) => {
     if (payload) {
@@ -74,65 +74,70 @@ export const createKioskScanScreen = (mode: 'check-in' | 'check-out'): View => {
   });
 
   // Content body
-  const body = document.createElement('div');
-  body.className = 'scan-body';
+  const body = document.createElement("div");
+  body.className = "scan-body";
 
   // Video Panels
-  const panelsGroup = document.createElement('div');
-  panelsGroup.className = 'video-panels';
+  const panelsGroup = document.createElement("div");
+  panelsGroup.className = "video-panels";
 
   // Live Panel inside bio-frame
-  const liveFrame = document.createElement('div');
-  liveFrame.className = 'bio-frame';
-  const liveCorners = document.createElement('div');
-  liveCorners.className = 'bio-frame-corners';
-  const liveScanLine = document.createElement('div');
-  liveScanLine.className = 'scan-line';
-  const countdownBadge = document.createElement('div');
-  countdownBadge.className = 'scan-countdown';
-  countdownBadge.style.display = 'none';
+  const liveFrame = document.createElement("div");
+  liveFrame.className = "bio-frame";
+  const liveCorners = document.createElement("div");
+  liveCorners.className = "bio-frame-corners";
+  const liveScanLine = document.createElement("div");
+  liveScanLine.className = "scan-line";
+  const countdownBadge = document.createElement("div");
+  countdownBadge.className = "scan-countdown";
+  countdownBadge.style.display = "none";
 
   const faceCamera = createFacePane();
-  liveFrame.append(faceCamera.element, liveCorners, liveScanLine, countdownBadge);
+  liveFrame.append(
+    faceCamera.element,
+    liveCorners,
+    liveScanLine,
+    countdownBadge,
+  );
 
-  const liveLabel = document.createElement('span');
-  liveLabel.className = 'panel-label';
-  liveLabel.textContent = 'LIVE';
+  const liveLabel = document.createElement("span");
+  liveLabel.className = "panel-label";
+  liveLabel.textContent = "LIVE";
 
-  const liveCaptureImg = document.createElement('img');
-  liveCaptureImg.className = 'match-thumb live-capture-thumb';
-  liveCaptureImg.alt = 'Recently captured face';
-  liveCaptureImg.style.display = 'none';
+  const liveCaptureImg = document.createElement("img");
+  liveCaptureImg.className = "match-thumb live-capture-thumb";
+  liveCaptureImg.alt = "Recently captured face";
+  liveCaptureImg.style.display = "none";
 
-  const livePanel = document.createElement('div');
-  livePanel.className = 'video-panel';
+  const livePanel = document.createElement("div");
+  livePanel.className = "video-panel";
   livePanel.append(liveFrame, liveCaptureImg);
 
   // Match Panel
-  const matchPanel = document.createElement('div');
-  matchPanel.className = 'video-panel match';
-  const matchImg = document.createElement('img');
-  matchImg.className = 'match-thumb';
-  matchImg.alt = 'Matched face';
-  matchImg.style.display = 'none';
-  const matchPending = document.createElement('div');
-  matchPending.className = 'match-pending';
-  const matchPendingSpinner = document.createElement('div');
-  matchPendingSpinner.className = 'match-pending-spinner';
-  const matchPendingTitle = document.createElement('span');
-  matchPendingTitle.className = 'match-pending-title';
-  matchPendingTitle.textContent = 'Verifying';
-  const matchPendingCopy = document.createElement('span');
-  matchPendingCopy.className = 'match-pending-copy';
-  matchPendingCopy.textContent = 'Comparing against enrolled faces';
-  const matchPendingProgress = document.createElement('div');
-  matchPendingProgress.className = 'match-pending-progress';
-  const matchPendingProgressFill = document.createElement('div');
-  matchPendingProgressFill.className = 'match-pending-progress-fill';
+  const matchPanel = document.createElement("div");
+  matchPanel.className = "video-panel match";
+  const matchImg = document.createElement("img");
+  matchImg.className = "match-thumb";
+  matchImg.alt = "Matched face";
+  matchImg.style.display = "none";
+  const matchPending = document.createElement("div");
+  matchPending.className = "match-pending";
+  const matchPendingSpinner = document.createElement("div");
+  matchPendingSpinner.className = "match-pending-spinner";
+  const matchPendingTitle = document.createElement("span");
+  matchPendingTitle.className = "match-pending-title";
+  matchPendingTitle.textContent = "Verifying";
+  const matchPendingCopy = document.createElement("span");
+  matchPendingCopy.className = "match-pending-copy";
+  matchPendingCopy.textContent = "Comparing against enrolled faces";
+  const matchPendingProgress = document.createElement("div");
+  matchPendingProgress.className = "match-pending-progress";
+  const matchPendingProgressFill = document.createElement("div");
+  matchPendingProgressFill.className = "match-pending-progress-fill";
   matchPendingProgress.append(matchPendingProgressFill);
-  const matchPendingProgressValue = document.createElement('span');
-  matchPendingProgressValue.className = 'match-pending-progress-value';
-  matchPendingProgressValue.textContent = '0%';
+  const matchPendingProgressValue = document.createElement("span");
+  matchPendingProgressValue.className = "match-pending-progress-value";
+  matchPendingProgressValue.textContent = "0%";
   matchPending.append(
     matchPendingSpinner,
     matchPendingTitle,
@@ -140,28 +145,28 @@ export const createKioskScanScreen = (mode: 'check-in' | 'check-out'): View => {
     matchPendingProgress,
     matchPendingProgressValue,
   );
-  const matchLabel = document.createElement('span');
-  matchLabel.className = 'panel-label';
-  matchLabel.textContent = 'MATCH';
+  const matchLabel = document.createElement("span");
+  matchLabel.className = "panel-label";
+  matchLabel.textContent = "MATCH";
   matchPanel.append(matchImg, matchPending, matchLabel);
 
   panelsGroup.append(livePanel, matchPanel);
 
   // Similarity Gauge
-  const matchBox = document.createElement('div');
-  matchBox.className = 'match-box';
-  const matchPercent = document.createElement('span');
-  matchPercent.className = 'match-percent';
-  matchPercent.textContent = '--%';
-  const matchTag = document.createElement('span');
-  matchTag.className = 'match-tag';
-  matchTag.textContent = 'FACIAL MATCH SIMILARITY';
+  const matchBox = document.createElement("div");
+  matchBox.className = "match-box";
+  const matchPercent = document.createElement("span");
+  matchPercent.className = "match-percent";
+  matchPercent.textContent = "--%";
+  const matchTag = document.createElement("span");
+  matchTag.className = "match-tag";
+  matchTag.textContent = "FACIAL MATCH SIMILARITY";
   matchBox.append(matchPercent, matchTag);
 
-  const defaultTokenHtml = `<span class="icon">${svgIconHtml('fingerprint')}</span><div><small>TOKEN ID</small><p>AWAITING</p></div>`;
-  const defaultTimeHtml = `<span class="icon">${svgIconHtml('clock')}</span><div><small>TIMESTAMP</small><p>--:--:--</p></div>`;
+  const defaultTokenHtml = `<span class="icon">${svgIconHtml("fingerprint")}</span><div><small>TOKEN ID</small><p>AWAITING</p></div>`;
+  const defaultTimeHtml = `<span class="icon">${svgIconHtml("clock")}</span><div><small>TIMESTAMP</small><p>--:--:--</p></div>`;
 
-  let lastFeedbackKey = '';
+  let lastFeedbackKey = "";
   // let detectionCycle = 0;
   // let lastDetectionSignature = '';
   // let lastErrorSignature = '';
@@ -183,7 +188,7 @@ export const createKioskScanScreen = (mode: 'check-in' | 'check-out'): View => {
     matchTag.textContent = gaugeLabel;
     matchPercent.textContent = gaugeValue;
     matchBox.dataset.tone = tone;
-    logInfo('Feedback update', {
+    logInfo("Feedback update", {
       key,
       tone,
       statusText,
@@ -193,38 +198,38 @@ export const createKioskScanScreen = (mode: 'check-in' | 'check-out'): View => {
   };
 
   // Actions
-  const actionsBox = document.createElement('div');
-  actionsBox.className = 'scan-actions';
+  const actionsBox = document.createElement("div");
+  actionsBox.className = "scan-actions";
 
-  const btnRescan = document.createElement('button');
-  btnRescan.className = 'action-btn secondary';
-  btnRescan.textContent = 'RESCAN';
-  btnRescan.addEventListener('click', () => {
+  const btnRescan = document.createElement("button");
+  btnRescan.className = "action-btn secondary";
+  btnRescan.textContent = "RESCAN";
+  btnRescan.addEventListener("click", () => {
     void navigate(() => createKioskScanScreen(mode));
   });
 
-  const btnConfirm = document.createElement('button');
-  btnConfirm.className = 'action-btn primary';
-  btnConfirm.textContent = 'CONFIRM IDENTITY';
+  const btnConfirm = document.createElement("button");
+  btnConfirm.className = "action-btn primary";
+  btnConfirm.textContent = "CONFIRM IDENTITY";
   btnConfirm.disabled = true;
 
   actionsBox.append(btnRescan, btnConfirm);
 
   // Context Info (Footer)
-  const contextBox = document.createElement('div');
-  contextBox.className = 'scan-context-info';
+  const contextBox = document.createElement("div");
+  contextBox.className = "scan-context-info";
 
-  const tokenInfo = document.createElement('div');
-  tokenInfo.className = 'info-card';
+  const tokenInfo = document.createElement("div");
+  tokenInfo.className = "info-card";
   tokenInfo.innerHTML = defaultTokenHtml;
 
-  const timeInfo = document.createElement('div');
-  timeInfo.className = 'info-card';
+  const timeInfo = document.createElement("div");
+  timeInfo.className = "info-card";
   timeInfo.innerHTML = defaultTimeHtml;
 
-  const locInfo = document.createElement('div');
-  locInfo.className = 'info-card';
-  locInfo.innerHTML = `<span class="icon">${svgIconHtml('location')}</span><div><small>LOCATION</small><p>Main Lobby - East</p></div>`;
+  const locInfo = document.createElement("div");
+  locInfo.className = "info-card";
+  locInfo.innerHTML = `<span class="icon">${svgIconHtml("location")}</span><div><small>LOCATION</small><p>Main Lobby - East</p></div>`;
 
   contextBox.append(tokenInfo, timeInfo, locInfo);
 
@@ -255,7 +260,7 @@ export const createKioskScanScreen = (mode: 'check-in' | 'check-out'): View => {
   const updateDetectionGauge = (
     qualityScore: number,
     tone: ScanFeedbackTone,
-    label = 'DETECTION QUALITY',
+    label = "DETECTION QUALITY",
   ): void => {
     matchTag.textContent = label;
     matchPercent.textContent = `${Math.round(qualityScore * 100)}%`;
@@ -271,21 +276,21 @@ export const createKioskScanScreen = (mode: 'check-in' | 'check-out'): View => {
       result.detected &&
       Boolean(result.primaryFace) &&
       result.faceCount === 1 &&
-      result.reasonCode !== 'multiple-faces' &&
+      result.reasonCode !== "multiple-faces" &&
       quality >= CAPTURE_QUALITY_THRESHOLD
     );
   };
 
   const showCountdown = (value: number): void => {
     countdownBadge.textContent = String(value);
-    countdownBadge.style.display = 'flex';
-    liveFrame.classList.add('countdown-active');
+    countdownBadge.style.display = "flex";
+    liveFrame.classList.add("countdown-active");
   };
 
   const hideCountdown = (): void => {
-    countdownBadge.style.display = 'none';
-    countdownBadge.textContent = '';
-    liveFrame.classList.remove('countdown-active');
+    countdownBadge.style.display = "none";
+    countdownBadge.textContent = "";
+    liveFrame.classList.remove("countdown-active");
   };
 
   const stopCountdown = (resetStableFrames = true): void => {
@@ -311,7 +316,8 @@ export const createKioskScanScreen = (mode: 'check-in' | 'check-out'): View => {
 
     const AudioContextCtor =
       window.AudioContext ??
-      (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      (window as Window & { webkitAudioContext?: typeof AudioContext })
+        .webkitAudioContext;
 
     if (!AudioContextCtor) {
       return null;
@@ -327,7 +333,7 @@ export const createKioskScanScreen = (mode: 'check-in' | 'check-out'): View => {
       return;
     }
 
-    if (audioContext.state === 'suspended') {
+    if (audioContext.state === "suspended") {
       void audioContext.resume().catch(() => undefined);
     }
 
@@ -335,7 +341,7 @@ export const createKioskScanScreen = (mode: 'check-in' | 'check-out'): View => {
     const oscillator = audioContext.createOscillator();
     const gainNode = audioContext.createGain();
 
-    oscillator.type = 'sine';
+    oscillator.type = "sine";
     oscillator.frequency.setValueAtTime(987, now);
 
     gainNode.gain.setValueAtTime(0.0001, now);
@@ -357,24 +363,24 @@ export const createKioskScanScreen = (mode: 'check-in' | 'check-out'): View => {
   //   logInfo('Reset to awaiting state');
   // };
 
-  btnConfirm.addEventListener('click', () => {
+  btnConfirm.addEventListener("click", () => {
     if (lastResponse) {
       const response = lastResponse;
-      logInfo('Confirm clicked with recognized response', {
+      logInfo("Confirm clicked with recognized response", {
         reasonCode: response.reasonCode,
         similarity: response.similarity,
         employeeId: response.employee?.id,
       });
       void navigate(() => createKioskApprovedScreen(response, mode));
     } else {
-      logWarn('Confirm clicked without response; returning to idle');
+      logWarn("Confirm clicked without response; returning to idle");
       void navigate(createKioskIdleScreen);
     }
   });
 
   const dataUrlToJpegFile = async (dataUrl: string): Promise<File> => {
     const blob = await fetch(dataUrl).then((r) => r.blob());
-    return new File([blob], 'face.jpg', { type: 'image/jpeg' });
+    return new File([blob], "face.jpg", { type: "image/jpeg" });
   };
 
   const setMatchPendingProgressValue = (value: number) => {
@@ -390,38 +396,42 @@ export const createKioskScanScreen = (mode: 'check-in' | 'check-out'): View => {
       verifyProgressTimer = null;
     }
 
-    if (typeof finalValue === 'number') {
+    if (typeof finalValue === "number") {
       setMatchPendingProgressValue(finalValue);
     }
   };
 
   const setMatchPanelIdle = () => {
     stopMatchPendingProgress(0);
-    matchImg.style.display = 'none';
-    matchPending.dataset.state = 'idle';
-    matchPendingTitle.textContent = 'Awaiting scan';
-    matchPendingCopy.textContent = 'The closest enrolled face will appear here';
-    matchPendingProgressValue.textContent = 'READY';
+    matchImg.style.display = "none";
+    matchPending.dataset.state = "idle";
+    matchPendingTitle.textContent = "Awaiting scan";
+    matchPendingCopy.textContent = "The closest enrolled face will appear here";
+    matchPendingProgressValue.textContent = "READY";
   };
 
   const setMatchPanelVerifying = () => {
     stopMatchPendingProgress(10);
-    matchImg.style.display = 'none';
-    matchPending.dataset.state = 'verifying';
-    matchPendingTitle.textContent = 'Verifying';
-    matchPendingCopy.textContent = 'Comparing against enrolled faces';
+    matchImg.style.display = "none";
+    matchPending.dataset.state = "verifying";
+    matchPendingTitle.textContent = "Verifying";
+    matchPendingCopy.textContent = "Comparing against enrolled faces";
     verifyProgressStartedAt = performance.now();
     verifyProgressTimer = setInterval(() => {
-      const elapsedSeconds = (performance.now() - verifyProgressStartedAt) / 1000;
-      const target = 10 + (84 * (1 - Math.exp(-elapsedSeconds / 4.2)));
-      const nextValue = verifyProgressValue + ((target - verifyProgressValue) * 0.22);
+      const elapsedSeconds =
+        (performance.now() - verifyProgressStartedAt) / 1000;
+      const target = 10 + 84 * (1 - Math.exp(-elapsedSeconds / 4.2));
+      const nextValue =
+        verifyProgressValue + (target - verifyProgressValue) * 0.22;
       setMatchPendingProgressValue(nextValue);
 
       if (elapsedSeconds > 6) {
-        matchPendingCopy.textContent = 'Still verifying. This can take a few seconds';
+        matchPendingCopy.textContent =
+          "Still verifying. This can take a few seconds";
       }
       if (elapsedSeconds > 12) {
-        matchPendingCopy.textContent = 'Final checks are running. Waiting for response';
+        matchPendingCopy.textContent =
+          "Final checks are running. Waiting for response";
       }
     }, 140);
   };
@@ -429,17 +439,17 @@ export const createKioskScanScreen = (mode: 'check-in' | 'check-out'): View => {
   const setMatchPanelResult = (imageUrl: string) => {
     stopMatchPendingProgress(100);
     matchImg.src = imageUrl;
-    matchImg.style.display = 'block';
-    matchPending.dataset.state = 'hidden';
+    matchImg.style.display = "block";
+    matchPending.dataset.state = "hidden";
   };
 
   const setMatchPanelManualRescan = (title: string, copy: string) => {
     stopMatchPendingProgress(0);
-    matchImg.style.display = 'none';
-    matchPending.dataset.state = 'manual-rescan';
+    matchImg.style.display = "none";
+    matchPending.dataset.state = "manual-rescan";
     matchPendingTitle.textContent = title;
     matchPendingCopy.textContent = copy;
-    matchPendingProgressValue.textContent = 'RESCAN';
+    matchPendingProgressValue.textContent = "RESCAN";
   };
 
   const buildCleanPreviewFromSnapshot = async (
@@ -457,17 +467,22 @@ export const createKioskScanScreen = (mode: 'check-in' | 'check-out'): View => {
       return snapshotDataUrl;
     }
 
-    const sourceCanvas = document.createElement('canvas');
+    const sourceCanvas = document.createElement("canvas");
     sourceCanvas.width = image.naturalWidth;
     sourceCanvas.height = image.naturalHeight;
-    const sourceCtx = sourceCanvas.getContext('2d');
+    const sourceCtx = sourceCanvas.getContext("2d");
 
     if (!sourceCtx) {
       return snapshotDataUrl;
     }
 
     sourceCtx.drawImage(image, 0, 0);
-    const pixels = sourceCtx.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height);
+    const pixels = sourceCtx.getImageData(
+      0,
+      0,
+      sourceCanvas.width,
+      sourceCanvas.height,
+    );
     const { data, width, height } = pixels;
     const sampleStep = Math.max(1, Math.floor(height / 240));
     const blackThreshold = 20;
@@ -479,7 +494,11 @@ export const createKioskScanScreen = (mode: 'check-in' | 'check-out'): View => {
 
       for (let y = 0; y < height; y += sampleStep) {
         const idx = (y * width + x) * 4;
-        const brightness = Math.max(data[idx] || 0, data[idx + 1] || 0, data[idx + 2] || 0);
+        const brightness = Math.max(
+          data[idx] || 0,
+          data[idx + 1] || 0,
+          data[idx + 2] || 0,
+        );
         if (brightness <= blackThreshold) {
           darkCount += 1;
         }
@@ -506,10 +525,10 @@ export const createKioskScanScreen = (mode: 'check-in' | 'check-out'): View => {
     const squareX = left + (cropWidth - squareSize) / 2;
     const squareY = (cropHeight - squareSize) / 2;
 
-    const outputCanvas = document.createElement('canvas');
+    const outputCanvas = document.createElement("canvas");
     outputCanvas.width = targetSize;
     outputCanvas.height = targetSize;
-    const outputCtx = outputCanvas.getContext('2d');
+    const outputCtx = outputCanvas.getContext("2d");
 
     if (!outputCtx) {
       return snapshotDataUrl;
@@ -527,40 +546,48 @@ export const createKioskScanScreen = (mode: 'check-in' | 'check-out'): View => {
       targetSize,
     );
 
-    return outputCanvas.toDataURL('image/jpeg', 0.92);
+    return outputCanvas.toDataURL("image/jpeg", 0.92);
   };
 
   const freezeLivePanel = (snapshot: string) => {
     liveCaptureImg.src = snapshot;
-    liveCaptureImg.style.display = 'block';
-    liveFrame.style.display = 'none';
-    liveLabel.textContent = 'CAPTURE';
+    liveCaptureImg.style.display = "block";
+    liveFrame.style.display = "none";
+    liveLabel.textContent = "CAPTURE";
   };
 
-  const lockForManualRescan = (statusText: string, title: string, copy: string) => {
+  const lockForManualRescan = (
+    statusText: string,
+    title: string,
+    copy: string,
+  ) => {
     resultLocked = true;
     verifying = false;
     btnConfirm.disabled = true;
     lastResponse = null;
-    matchBox.dataset.tone = 'warn';
-    matchTag.textContent = 'MANUAL RESCAN REQUIRED';
-    matchPercent.textContent = 'RETRY';
+    matchBox.dataset.tone = "warn";
+    matchTag.textContent = "MANUAL RESCAN REQUIRED";
+    matchPercent.textContent = "RETRY";
     tokenInfo.innerHTML = defaultTokenHtml;
     timeInfo.innerHTML = defaultTimeHtml;
-    faceCamera.setStatus(statusText, 'error');
+    faceCamera.setStatus(statusText, "error");
     setMatchPanelManualRescan(title, copy);
-    logWarn('Scan locked pending manual rescan', {
+    logWarn("Scan locked pending manual rescan", {
       statusText,
       title,
       copy,
     });
   };
 
-  const processMatch = (similarityNum: number, response: VerifyFaceResponse, snapshot: string) => {
+  const processMatch = (
+    similarityNum: number,
+    response: VerifyFaceResponse,
+    snapshot: string,
+  ) => {
     const percent = Math.round(similarityNum * 100);
     matchPercent.textContent = `${percent}%`;
-    matchTag.textContent = 'FACIAL MATCH SIMILARITY';
-    logInfo('Verification response processed', {
+    matchTag.textContent = "FACIAL MATCH SIMILARITY";
+    logInfo("Verification response processed", {
       recognized: response.recognized,
       reasonCode: response.reasonCode,
       similarity: response.similarity,
@@ -571,34 +598,47 @@ export const createKioskScanScreen = (mode: 'check-in' | 'check-out'): View => {
       lastResponse = response;
       setMatchPanelResult(response.bestMatchImageDataUrl || snapshot);
       btnConfirm.disabled = false;
-      setScanFeedback('recognized', `Identity verified (${percent}%). Press confirm to continue.`, 'ok', 'FACIAL MATCH SIMILARITY', `${percent}%`);
+      setScanFeedback(
+        "recognized",
+        `Identity verified (${percent}%). Press confirm to continue.`,
+        "ok",
+        "FACIAL MATCH SIMILARITY",
+        `${percent}%`,
+      );
 
       const emp = response.employee;
-      tokenInfo.innerHTML = `<span class="icon">${svgIconHtml('fingerprint')}</span><div><small>TOKEN ID</small><p>${emp?.id || 'VERIFIED'}</p></div>`;
-      timeInfo.innerHTML = `<span class="icon">${svgIconHtml('clock')}</span><div><small>TIMESTAMP</small><p>${new Date().toLocaleTimeString()}</p></div>`;
-      faceCamera.setStatus('Identity verified. Press confirm to continue.', 'ok');
+      tokenInfo.innerHTML = `<span class="icon">${svgIconHtml("fingerprint")}</span><div><small>TOKEN ID</small><p>${emp?.id || "VERIFIED"}</p></div>`;
+      timeInfo.innerHTML = `<span class="icon">${svgIconHtml("clock")}</span><div><small>TIMESTAMP</small><p>${new Date().toLocaleTimeString()}</p></div>`;
+      faceCamera.setStatus(
+        "Identity verified. Press confirm to continue.",
+        "ok",
+      );
     } else {
-      if (response.reasonCode === 'no-face' || response.reasonCode === 'service-error') {
-        const rescanMessage = response.reasonCode === 'no-face'
-          ? 'No face detected in the captured image. Press rescan to try again.'
-          : 'Could not reach the verification API. Press rescan to try again.';
+      if (
+        response.reasonCode === "no-face" ||
+        response.reasonCode === "service-error"
+      ) {
+        const rescanMessage =
+          response.reasonCode === "no-face"
+            ? "No face detected in the captured image. Press rescan to try again."
+            : "Could not reach the verification API. Press rescan to try again.";
         lockForManualRescan(
           rescanMessage,
-          'Manual rescan required',
+          "Manual rescan required",
           rescanMessage,
         );
         return;
       }
 
-      faceCamera.setStatus('Face not recognized. Redirecting...', 'error');
-      matchBox.dataset.tone = 'error';
-      matchTag.textContent = 'MATCH FAILED';
-      matchPercent.textContent = 'FAIL';
+      faceCamera.setStatus("Face not recognized. Redirecting...", "error");
+      matchBox.dataset.tone = "error";
+      matchTag.textContent = "MATCH FAILED";
+      matchPercent.textContent = "FAIL";
       setMatchPanelIdle();
-      tokenInfo.innerHTML = `<span class="icon">${svgIconHtml('fingerprint')}</span><div><small>TOKEN ID</small><p>UNKNOWN</p></div>`;
-      faceCamera.setStatus('Face not recognized. Redirecting...', 'error');
+      tokenInfo.innerHTML = `<span class="icon">${svgIconHtml("fingerprint")}</span><div><small>TOKEN ID</small><p>UNKNOWN</p></div>`;
+      faceCamera.setStatus("Face not recognized. Redirecting...", "error");
       setTimeout(() => {
-        logInfo('Navigating to denied screen after failed match', {
+        logInfo("Navigating to denied screen after failed match", {
           reasonCode: response.reasonCode,
           similarity: response.similarity,
         });
@@ -614,28 +654,29 @@ export const createKioskScanScreen = (mode: 'check-in' | 'check-out'): View => {
 
     verifying = true;
     setRescanLocked(true);
-    faceCamera.setStatus(statusLabel, 'warn');
+    faceCamera.setStatus(statusLabel, "warn");
     setMatchPanelVerifying();
 
     try {
       const rawSnapshot = faceCamera.captureFrameJpeg(1080, 0.9);
       if (!rawSnapshot) {
-        faceCamera.setStatus('Camera frame not ready', 'error');
+        faceCamera.setStatus("Camera frame not ready", "error");
         setMatchPanelIdle();
         return;
       }
 
-      const displaySnapshot = await buildCleanPreviewFromSnapshot(rawSnapshot) || rawSnapshot;
+      const displaySnapshot =
+        (await buildCleanPreviewFromSnapshot(rawSnapshot)) || rawSnapshot;
       freezeLivePanel(displaySnapshot);
 
       const file = await dataUrlToJpegFile(rawSnapshot);
-      const response = await verifyFace(file, 'temp_images');
+      const response = await verifyFace(file, "temp_images");
       resultLocked = true;
       processMatch(response.similarity || 0, response, rawSnapshot);
     } catch (error) {
-      console.error('Capture pipeline failed', error);
-      faceCamera.setStatus('Verification error', 'error');
-      updateDetectionGauge(0, 'error', 'CAPTURE FAILED');
+      console.error("Capture pipeline failed", error);
+      faceCamera.setStatus("Verification error", "error");
+      updateDetectionGauge(0, "error", "CAPTURE FAILED");
     } finally {
       verifying = false;
       if (!resultLocked) {
@@ -653,7 +694,10 @@ export const createKioskScanScreen = (mode: 'check-in' | 'check-out'): View => {
     countdownRemaining = COUNTDOWN_SECONDS;
     setRescanLocked(true);
     showCountdown(countdownRemaining);
-    faceCamera.setStatus(`Hold still. Capturing in ${countdownRemaining}...`, 'ok');
+    faceCamera.setStatus(
+      `Hold still. Capturing in ${countdownRemaining}...`,
+      "ok",
+    );
     playCountdownBeep();
 
     countdownTimer = setInterval(() => {
@@ -661,19 +705,25 @@ export const createKioskScanScreen = (mode: 'check-in' | 'check-out'): View => {
 
       if (countdownRemaining > 0) {
         showCountdown(countdownRemaining);
-        faceCamera.setStatus(`Hold still. Capturing in ${countdownRemaining}...`, 'ok');
+        faceCamera.setStatus(
+          `Hold still. Capturing in ${countdownRemaining}...`,
+          "ok",
+        );
         playCountdownBeep();
         return;
       }
 
       if (!lastEligibleDetection || !isCaptureEligible(lastEligibleDetection)) {
         stopCountdown();
-        faceCamera.setStatus('Face moved. Realign to restart countdown.', 'warn');
+        faceCamera.setStatus(
+          "Face moved. Realign to restart countdown.",
+          "warn",
+        );
         return;
       }
 
       stopCountdown();
-      void runCapturePipeline('Capturing face');
+      void runCapturePipeline("Capturing face");
     }, 1000);
   };
 
@@ -693,32 +743,32 @@ export const createKioskScanScreen = (mode: 'check-in' | 'check-out'): View => {
         stopCountdown();
         lastEligibleDetection = null;
         stableFaceFrames = 0;
-        faceCamera.setStatus('Initializing camera', 'warn');
-        updateDetectionGauge(0, 'warn');
+        faceCamera.setStatus("Initializing camera", "warn");
+        updateDetectionGauge(0, "warn");
         return;
       }
 
       const result = await detectFaces(faceCamera.getVideoElement());
       const qualityScore = getQualityScore(result);
 
-      console.log('Detecting Face');
+      console.log("Detecting Face");
       faceCamera.setFaceOverlay(result.primaryFace);
 
-      if (result.reasonCode === 'not-supported') {
+      if (result.reasonCode === "not-supported") {
         stopCountdown();
         lastEligibleDetection = null;
         stableFaceFrames = 0;
-        updateDetectionGauge(0, 'warn', 'DETECTION QUALITY');
-        void runCapturePipeline('Detector unavailable, sending to API');
+        updateDetectionGauge(0, "warn", "DETECTION QUALITY");
+        void runCapturePipeline("Detector unavailable, sending to API");
         return;
       }
 
-      if (result.reasonCode === 'multiple-faces') {
+      if (result.reasonCode === "multiple-faces") {
         stopCountdown();
         lastEligibleDetection = null;
         stableFaceFrames = 0;
-        faceCamera.setStatus('Multiple faces detected', 'warn');
-        updateDetectionGauge(qualityScore, 'warn');
+        faceCamera.setStatus("Multiple faces detected", "warn");
+        updateDetectionGauge(qualityScore, "warn");
         return;
       }
 
@@ -726,8 +776,8 @@ export const createKioskScanScreen = (mode: 'check-in' | 'check-out'): View => {
         stopCountdown();
         lastEligibleDetection = null;
         stableFaceFrames = 0;
-        faceCamera.setStatus('Align face with camera', 'warn');
-        updateDetectionGauge(0, 'warn');
+        faceCamera.setStatus("Align face with camera", "warn");
+        updateDetectionGauge(0, "warn");
         return;
       }
 
@@ -737,56 +787,60 @@ export const createKioskScanScreen = (mode: 'check-in' | 'check-out'): View => {
         stableFaceFrames = 0;
         faceCamera.setStatus(
           `Improve alignment (${Math.round(qualityScore * 100)}% / ${Math.round(CAPTURE_QUALITY_THRESHOLD * 100)}%)`,
-          'warn',
+          "warn",
         );
-        updateDetectionGauge(qualityScore, 'warn');
+        updateDetectionGauge(qualityScore, "warn");
         return;
       }
 
       lastEligibleDetection = result;
       stableFaceFrames += 1;
 
-      updateDetectionGauge(qualityScore, 'ok');
+      updateDetectionGauge(qualityScore, "ok");
 
       if (countdownActive) {
-        faceCamera.setStatus(`Hold still. Capturing in ${countdownRemaining}...`, 'ok');
+        faceCamera.setStatus(
+          `Hold still. Capturing in ${countdownRemaining}...`,
+          "ok",
+        );
         return;
       }
 
       if (stableFaceFrames < REQUIRED_STABLE_FRAMES) {
-        faceCamera.setStatus('Locking face. Hold still for countdown.', 'ok');
+        faceCamera.setStatus("Locking face. Hold still for countdown.", "ok");
         return;
       }
 
       startCountdown();
     } catch (err) {
-      console.error('Detection failed', err);
+      console.error("Detection failed", err);
       lockForManualRescan(
-        'Verification request failed. Press rescan to try again.',
-        'Manual rescan required',
-        'The captured image was kept on screen because the API request failed.',
+        "Verification request failed. Press rescan to try again.",
+        "Manual rescan required",
+        "The captured image was kept on screen because the API request failed.",
       );
       verifying = false;
     } finally {
       detecting = false;
+      setRescanLocked(false);
     }
   };
 
   return {
     element: container,
     onShow: async () => {
-      logInfo('Scan screen mounted');
+      logInfo("Scan screen mounted");
       await faceCamera.start();
       warmUntil = Date.now() + 1500;
       stableFaceFrames = 0;
       lastEligibleDetection = null;
       setMatchPanelIdle();
-      updateDetectionGauge(0, 'warn');
-      faceCamera.setStatus('Scanning face', 'warn');
+      updateDetectionGauge(0, "warn");
+      faceCamera.setStatus("Scanning face", "warn");
       detectionTimer = setInterval(() => void runDetection(), 800);
     },
     onHide: () => {
-      logInfo('Scan screen unmounted');
+      logInfo("Scan screen unmounted");
       if (detectionTimer) clearInterval(detectionTimer);
       stopCountdown();
       stopMatchPendingProgress();
@@ -797,6 +851,6 @@ export const createKioskScanScreen = (mode: 'check-in' | 'check-out'): View => {
       }
 
       faceCamera.stop();
-    }
+    },
   };
 };
