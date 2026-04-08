@@ -8,7 +8,9 @@ type VerificationReasonCode =
 
 export type EmployeeRecord = {
   id?: string;
+  name?: string;
   fullname?: string;
+  fullName?: string;
   department?: string;
   title?: string;
   ownerType?: string;
@@ -102,6 +104,14 @@ const normalizePersonRecord = (
   }
 
   const source = value as Record<string, unknown>;
+  const resolvedName =
+    typeof source.name === "string"
+      ? source.name
+      : typeof source.fullname === "string"
+        ? source.fullname
+        : typeof source.fullName === "string"
+          ? source.fullName
+          : undefined;
 
   return {
     ...source,
@@ -111,11 +121,18 @@ const normalizePersonRecord = (
         : typeof source._id === "string"
           ? source._id
           : undefined,
+    name: resolvedName,
     fullname:
       typeof source.fullname === "string"
         ? source.fullname
         : typeof source.fullName === "string"
           ? source.fullName
+          : undefined,
+    fullName:
+      typeof source.fullName === "string"
+        ? source.fullName
+        : typeof source.fullname === "string"
+          ? source.fullname
           : undefined,
     ownerType,
   };
